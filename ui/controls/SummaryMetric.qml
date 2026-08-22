@@ -1,0 +1,47 @@
+import QtQuick
+import QtQuick.Layouts
+
+Item {
+    id: root
+
+    required property var theme
+    property string label: ""
+    property string value: "—"
+    property string detail: ""
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.leftMargin: 12
+        anchors.rightMargin: 8
+        spacing: 2
+
+        Item { Layout.fillHeight: true }
+        PlainText {
+            Layout.fillWidth: true
+            text: root.label.toUpperCase()
+            color: root.theme.muted
+            font.family: root.theme.dataFont
+            font.pixelSize: root.theme.microFontSize
+            font.letterSpacing: root.theme.utilityTracking
+            elide: Text.ElideRight
+        }
+        PlainText {
+            Layout.fillWidth: true
+            text: root.value
+            color: root.theme.metricText
+            font.family: root.theme.dataFont
+            font.pixelSize: root.theme.summaryFontSize
+            font.bold: true
+            elide: Text.ElideRight
+        }
+        PlainText {
+            Layout.fillWidth: true
+            text: root.detail
+            color: root.theme.muted
+            font.family: root.theme.dataFont
+            font.pixelSize: root.theme.microFontSize
+            elide: Text.ElideRight
+        }
+        Item { Layout.fillHeight: true }
+    }
+}

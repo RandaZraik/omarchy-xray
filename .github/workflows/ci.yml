@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the reviewed commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Compile the backend
+        run: python3 -m compileall -q backend
+
+      - name: Install the portable Qt runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends qml-qt6 qml6-module-qtquick qt6-declarative-dev-tools
+
+      - name: Run portable unit tests
+        env:
+          PYTHONPATH: backend:tests
+        run: python3 -m unittest discover -s tests/unit -p 'test_*.py'
+
+      - name: Verify a controlled live process tree
+        env:
+          PYTHONPATH: backend:tests/functional
+        run: python3 -m unittest discover -s tests/functional -p 'test_live_truth.py'
+
+      - name: Verify portable QML and JavaScript behavior
+        env:
+          PYTHONPATH: backend:tests/functional
+        run: python3 -m unittest discover -s tests/functional -p 'test_qml_logic.py'
+
+      - name: Check portable QML and JavaScript syntax
+        run: |
+          QMLFORMAT="$(command -v qmlformat || true)"
+          if [ -z "$QMLFORMAT" ]; then
+            QMLFORMAT=/usr/lib/qt6/bin/qmlformat
+          fi
+          QMLLINT="$(command -v qmllint || true)"
+          if [ -z "$QMLLINT" ]; then
+            QMLLINT=/usr/lib/qt6/bin/qmllint
+          fi
+          while IFS= read -r -d '' file; do
+            "$QMLFORMAT" "$file" >/dev/null
+          done < <(find . -type f -name '*.qml' -not -path './.git/*' -print0)
+          find . -type f -name '*.js' -not -path './.git/*' \
+            -exec "$QMLLINT" {} +

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.randazraik.xray",
+  "name": "Omarchy X-Ray",
+  "version": "0.1.0",
+  "author": "RandaZraik",
+  "license": "MIT",
+  "description": "Trace any window, process, service, container, port, file, or device to the process behind it, how it started, and what it is using.",
+  "kinds": [
+    "overlay",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "XRay.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "X-Ray",
+    "description": "Trace system activity with X-Ray.",
+    "category": "System",
+    "aliases": [
+      "inspector",
+      "processes",
+      "ports",
+      "services",
+      "containers"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

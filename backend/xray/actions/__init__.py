@@ -1,0 +1,1 @@
+"""Guarded user actions."""
