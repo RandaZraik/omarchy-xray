@@ -23,8 +23,7 @@ Item {
     readonly property string capsuleDrawer: "capsule"
     property string detailDomain: ""
     property var detailSnapshot: ({})
-    property alias cpuSamples: sampling.cpuSamples
-    property alias memorySamples: sampling.memorySamples
+    property alias performanceSamples: sampling.performanceSamples
     property alias previousMetrics: sampling.previousMetrics
     property alias actionInFlight: actions.actionInFlight
     property alias yieldingFocus: actions.yieldingFocus
@@ -118,8 +117,7 @@ Item {
         drawer = "";
         detailSnapshot = ({});
         snapshot = ({});
-        cpuSamples = [];
-        memorySamples = [];
+        performanceSamples = [];
         previousMetrics = ({});
         offline = false;
         busy = false;
@@ -180,8 +178,13 @@ Item {
         archived.samplingPaused = true;
         snapshot = archived;
         offline = true;
-        cpuSamples = [Number((archived.metrics || {}).cpuPercent || 0)];
-        memorySamples = [Number((archived.metrics || {}).memoryBytes || 0)];
+        performanceSamples = [{
+            "capturedAt": Date.now(),
+            "cpuPercent": (archived.metrics || {}).cpuAvailable === false
+                ? null
+                : Number((archived.metrics || {}).cpuPercent || 0),
+            "memoryBytes": Number((archived.metrics || {}).memoryBytes || 0)
+        }];
         previousMetrics = ({});
         drawer = "";
         capturingPreview = false;

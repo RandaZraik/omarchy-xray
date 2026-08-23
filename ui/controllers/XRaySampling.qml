@@ -19,8 +19,7 @@ Item {
     property var snapshot: ({})
     property var defaultSettings: ({})
     property var currentSettings: ({})
-    property var cpuSamples: []
-    property var memorySamples: []
+    property var performanceSamples: []
     property var previousMetrics: ({})
     property var pendingPreview: null
     readonly property int performanceWindowSeconds: 60
@@ -106,16 +105,18 @@ Item {
         snapshot = data || {};
         var metrics = snapshot.metrics || {};
         currentSettings = snapshot.settings || currentSettings;
-        var refreshSeconds = Number(
-            currentSettings.refreshSeconds || defaultSettings.refreshSeconds || 2
-        );
-        var sampleLimit = Math.max(2, Math.ceil(performanceWindowSeconds / refreshSeconds));
-        var retainedCpu = (resetSamples ? [] : cpuSamples).slice(1 - sampleLimit);
-        cpuSamples = metrics.cpuAvailable === false
-            ? retainedCpu
-            : retainedCpu.concat([Number(metrics.cpuPercent || 0)]);
-        memorySamples = (resetSamples ? [] : memorySamples)
-            .slice(1 - sampleLimit).concat([Number(metrics.memoryBytes || 0)]);
+        var capturedAt = Date.now();
+        var cutoff = capturedAt - performanceWindowSeconds * 1000;
+        var retained = (resetSamples ? [] : performanceSamples).filter(function(sample) {
+            return Number(sample.capturedAt || 0) >= cutoff;
+        });
+        performanceSamples = retained.concat([{
+            "capturedAt": capturedAt,
+            "cpuPercent": metrics.cpuAvailable === false
+                ? null
+                : Number(metrics.cpuPercent || 0),
+            "memoryBytes": Number(metrics.memoryBytes || 0)
+        }]).slice(-performanceWindowSeconds - 1);
         resumeIfEligible();
     }
 

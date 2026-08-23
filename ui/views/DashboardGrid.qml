@@ -9,8 +9,7 @@ Item {
 
     required property var theme
     property var snapshot: ({})
-    property var cpuSamples: []
-    property var memorySamples: []
+    property var performanceSamples: []
     property int performanceWindowSeconds: 60
     property bool busy: false
 
@@ -58,9 +57,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 204
                 theme: root.theme
-                snapshot: root.snapshot
-                samples: root.cpuSamples
-                memorySamples: root.memorySamples
+                samples: root.performanceSamples
                 windowSeconds: root.performanceWindowSeconds
             }
             ConnectionsCard {

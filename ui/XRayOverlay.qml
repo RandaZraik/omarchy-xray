@@ -219,8 +219,7 @@ Item {
                                 Layout.fillHeight: true
                                 theme: theme
                                 snapshot: controller.snapshot
-                                cpuSamples: controller.cpuSamples
-                                memorySamples: controller.memorySamples
+                                performanceSamples: controller.performanceSamples
                                 performanceWindowSeconds: controller.performanceWindowSeconds
                                 busy: controller.busy
                                 onProcessSelected: function(pid) { controller.focusProcess(pid); }

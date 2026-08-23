@@ -165,6 +165,18 @@ QtObject {
     readonly property int telemetryModulePadding: Style.space(10)
     readonly property int telemetryRailWidth: Math.max(2, borderWidth * 2)
     readonly property int telemetrySignalHeight: Math.max(2, borderWidth * 2)
+    readonly property int performanceLegendHeight: Style.space(24)
+    readonly property int performanceLegendSwatchWidth: Style.space(18)
+    readonly property int performanceTimelineHeight: Style.space(16)
+    readonly property int performancePlotPadding: Style.space(4)
+    readonly property real performanceGridOpacity: 0.48
+    readonly property real performanceFillOpacity: 0.16
+    readonly property real performanceScaleHeadroom: 1.24
+    readonly property real performanceMemoryPadding: 0.025
+    readonly property real performancePrimaryTraceWidth: Math.max(2, borderWidth * 2)
+    readonly property real performanceSecondaryTraceWidth: Math.max(1.5, borderWidth * 1.5)
+    readonly property real performancePointRadius: Math.max(2, borderWidth * 2)
+    readonly property real minimumCpuChartScale: 10
     readonly property int footerExpandedWidth: Style.space(1120)
     readonly property int footerSidePadding: Style.space(8)
     readonly property int footerSpacing: Style.space(6)

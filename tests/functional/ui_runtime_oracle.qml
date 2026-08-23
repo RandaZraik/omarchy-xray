@@ -15,6 +15,7 @@ ShellRoot {
     property var events: ({})
     property string query: ""
     property int stableTargetPid: 0
+    property var samplesBeforeConfigure: []
     property int requestedWidth: Number(Quickshell.env("XRAY_UI_ORACLE_WIDTH")) || 1200
     property int requestedHeight: Number(Quickshell.env("XRAY_UI_ORACLE_HEIGHT")) || 760
 
@@ -161,8 +162,7 @@ ShellRoot {
                         Layout.fillHeight: true
                         theme: theme
                         snapshot: controller.snapshot
-                        cpuSamples: controller.cpuSamples
-                        memorySamples: controller.memorySamples
+                        performanceSamples: controller.performanceSamples
                         onProcessSelected: function(pid) { root.record("process", pid) }
                         onDetailsRequested: function(domain) { root.record("details", domain) }
                     }
@@ -290,6 +290,23 @@ ShellRoot {
                     root.require(card && root.insideViewport(card),
                         name + " escaped the responsive viewport")
                 })
+                var performanceCard = root.find(
+                    window.contentItem, "objectName", "xrayPerformanceCard"
+                )
+                var performanceChart = root.find(
+                    performanceCard, "objectName", "xrayPerformanceChart"
+                )
+                root.require(performanceChart
+                        && performanceChart.width > 0 && performanceChart.height > 0,
+                    "performance history plot has no usable geometry")
+                ;["CPU", "MEMORY", "NOW"].forEach(function(label) {
+                    root.require(root.find(performanceCard, "text", label),
+                        "performance card is missing its " + label + " readout")
+                })
+                root.require(performanceCard.samples === controller.performanceSamples,
+                    "performance history is not bound to the controller's timestamped samples")
+                root.require(Number((performanceCard.samples[0] || {}).capturedAt) > 0,
+                    "performance history samples have no capture timestamp")
                 root.require(header.height === 46, "header height changed")
                 root.require(footer.height === 46, "footer height changed")
 
@@ -462,6 +479,7 @@ ShellRoot {
                 root.require(cancelButton && confirmButton, "confirmation actions are missing")
                 cancelButton.clicked()
                 confirmButton.clicked()
+                root.samplesBeforeConfigure = controller.performanceSamples.slice()
                 controller.configure({
                     "refreshSeconds": 1,
                     "historySeconds": 60,
@@ -476,6 +494,20 @@ ShellRoot {
                     return
                 root.require(controller.refreshIntervalMs === 1000,
                     "the saved refresh setting did not update the live timer")
+                root.require(controller.performanceSamples.length
+                        > root.samplesBeforeConfigure.length,
+                    "changing refresh cadence discarded or failed to append performance history")
+                root.require(controller.performanceSamples.slice(
+                        0, root.samplesBeforeConfigure.length
+                    ).every(function(sample, index) {
+                        return Number(sample.capturedAt)
+                            === Number(root.samplesBeforeConfigure[index].capturedAt)
+                    }), "changing refresh cadence rewrote existing performance timestamps")
+                root.require(controller.performanceSamples.every(function(sample, index, rows) {
+                    return Number(sample.capturedAt) > 0
+                        && (index === 0
+                            || Number(sample.capturedAt) >= Number(rows[index - 1].capturedAt))
+                }), "performance history timestamps are missing or unordered")
                 controller.toggleSampling()
                 root.stage = 3
                 return
