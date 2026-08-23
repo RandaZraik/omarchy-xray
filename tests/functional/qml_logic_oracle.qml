@@ -41,14 +41,28 @@ QtObject {
             "availability": {"pipewire": "unavailable", "gpu": "partial", "inhibitors": "unavailable"}
         })
         var catalog = {
-            "windows": [{"class": "Chromium", "title": "Docs", "pid": 10, "address": "0xa", "focused": true}],
-            "processes": [{"name": "chromium", "pid": 11}],
-            "services": [{"id": "demo.service", "description": "Demo worker", "scope": "user"}],
-            "containers": [{"id": "abcdef", "name": "postgres", "image": "postgres:16", "runtime": "docker"}],
-            "devices": [{"kind": "microphone", "application": "Recorder", "pid": 12}],
-            "gpu": [{"application": "Game", "pid": 13, "device": "/dev/dri/renderD128"}],
-            "ports": [{"localPort": 5173, "protocol": "TCP4", "state": "Listen"}]
+            "quickTargets": [{"label": "Microphone", "query": "microphone"}],
+            "windows": [{"class": "Chromium", "title": "Docs", "pid": 10, "address": "0xa", "focused": true, "query": "window:0xa"}],
+            "processes": [{"name": "chromium", "pid": 11, "query": "pid:11"}],
+            "services": [{"id": "demo.service", "description": "Demo worker", "scope": "user", "query": "service:user:demo.service"}],
+            "containers": [{"id": "abcdef", "name": "postgres", "image": "postgres:16", "runtime": "docker", "query": "container:docker:abcdef"}],
+            "devices": [{"kind": "microphone", "application": "Recorder", "pid": 12, "query": "pid:12"}],
+            "gpu": [{"application": "Game", "pid": 13, "device": "/dev/dri/renderD128", "query": "pid:13"}],
+            "ports": [{"localPort": 5173, "protocol": "TCP4", "state": "Listen", "query": ":5173"}]
         }
+        var catalogEntries = TargetSearch.entries(catalog)
+        var partitionCount = TargetSearch.Filters.filter(function(filter) {
+            return filter.id !== "all"
+        })
+            .reduce(function(total, filter) {
+                return total + TargetSearch.browse(catalogEntries, filter.id).length
+            }, 0)
+        var manyProcesses = []
+        for (var processIndex = 0; processIndex < 100; processIndex++) {
+            var pid = 1000 + processIndex
+            manyProcesses.push({"name": "worker", "pid": pid, "query": "pid:" + pid})
+        }
+        var largeCatalogEntries = TargetSearch.entries({"processes": manyProcesses})
         var snapshot = {
             "target": {
                 "ownerPid": 10,
@@ -89,13 +103,33 @@ QtObject {
             "mixed": mixed,
             "overflow": overflow,
             "limited": limited,
-            "windowSearch": TargetSearch.matches("chro", catalog, 7),
-            "serviceSearch": TargetSearch.matches("demo", catalog, 7),
-            "containerSearch": TargetSearch.matches("postgres", catalog, 7),
-            "deviceSearch": TargetSearch.matches("recorder", catalog, 7),
-            "gpuSearch": TargetSearch.matches("game", catalog, 7),
-            "portSearch": TargetSearch.matches("5173", catalog, 7),
-            "boundedSearch": TargetSearch.matches("", catalog, 7),
+            "windowSearch": TargetSearch.matches("chro", catalogEntries, 7),
+            "windowOnlySearch": TargetSearch.matches("chro", catalogEntries, 7, "apps"),
+            "processOnlySearch": TargetSearch.matches("chro", catalogEntries, 7, "processes"),
+            "serviceSearch": TargetSearch.matches("demo", catalogEntries, 7),
+            "containerSearch": TargetSearch.matches("postgres", catalogEntries, 7),
+            "deviceSearch": TargetSearch.matches("recorder", catalogEntries, 7),
+            "gpuSearch": TargetSearch.matches("game", catalogEntries, 7),
+            "gpuFallbackLabelSearch": TargetSearch.matches("GPU client",
+                TargetSearch.entries({
+                    "gpu": [{"pid": 14, "device": "/dev/dri/card1", "query": "pid:14"}]
+                }), 7),
+            "portSearch": TargetSearch.matches("5173", catalogEntries, 7),
+            "exactPortSearch": TargetSearch.matches(":5173", catalogEntries, 7),
+            "boundedSearch": TargetSearch.matches("", catalogEntries, 7),
+            "browseKinds": TargetSearch.browse(catalogEntries, "all").map(function(entry) {
+                return entry.kind
+            }),
+            "filters": TargetSearch.Filters,
+            "targetCount": TargetSearch.targetCount(catalogEntries),
+            "shortcutCount": TargetSearch.shortcutCount(catalogEntries),
+            "partitionCount": partitionCount,
+            "completeSearchCount": TargetSearch.matches(
+                "worker", largeCatalogEntries,
+                TargetSearch.targetCount(largeCatalogEntries), "all"
+            ).length,
+            "portBrowse": TargetSearch.browse(catalogEntries, "ports"),
+            "ownerMatches": TargetSearch.ownerMatches(snapshot.target),
             "ipv4Endpoint": Format.addressPort("127.0.0.1", 443),
             "ipv6Endpoint": Format.addressPort("2001:db8::1", 443),
             "detailCounts": detailCounts,

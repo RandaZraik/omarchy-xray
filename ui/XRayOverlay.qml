@@ -16,12 +16,22 @@ Item {
 
     property alias opened: controller.opened
     property var inspectionScreen: null
+    property bool browserOpen: false
+    property string currentQuery: ""
+    readonly property bool browserPinned: desk.width >= theme.targetBrowserPinnedWidth
 
     function open(payloadJson) {
         inspectionScreen = focusedScreen();
         controller.open(payloadJson);
     }
     function close() { controller.close(); }
+
+    function dismissTopLayer() {
+        if (controller.pendingAction) controller.cancelActionAfterPointer();
+        else if (controller.drawer) controller.closeDrawer();
+        else if (browserOpen && !browserPinned) browserOpen = false;
+        else controller.close();
+    }
 
     function focusedScreen() {
         var monitor = Hyprland.focusedMonitor;
@@ -36,9 +46,13 @@ Item {
     XRayController {
         id: controller
         objectName: "xrayController"
+        onOpenedChanged: if (opened) {
+            Qt.callLater(function() { root.browserOpen = root.browserPinned; });
+        }
         onClosed: root.inspectionScreen = null
-        onPaletteDismissRequested: appHeader.paletteVisible = false
-        onQuerySynchronized: function(query) { appHeader.queryText = query; }
+        onQuerySynchronized: function(query) {
+            root.currentQuery = query;
+        }
         onClipboardRequested: function(text) { Quickshell.clipboardText = text; }
         onCapsuleStatusChanged: function(message) { capsuleDrawer.status = message; }
     }
@@ -46,18 +60,24 @@ Item {
     XRayTheme { id: theme }
     XRayContract { id: contract }
 
+    onBrowserPinnedChanged: if (controller.opened && browserPinned)
+        browserOpen = true
+
     Shortcut {
         sequence: "Escape"
         context: Qt.ApplicationShortcut
         enabled: controller.opened
-        onActivated: controller.dismissTopLayer(appHeader.paletteVisible)
+        onActivated: root.dismissTopLayer()
     }
 
     Shortcut {
         sequence: "Ctrl+K"
         context: Qt.ApplicationShortcut
         enabled: controller.opened && controller.drawer === "" && !controller.pendingAction
-        onActivated: appHeader.focusSearch(true)
+        onActivated: {
+            root.browserOpen = true;
+            Qt.callLater(function() { targetBrowser.focusSearch(true); });
+        }
     }
 
     Shortcut {
@@ -106,7 +126,7 @@ Item {
 
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Escape) {
-                        controller.dismissTopLayer(appHeader.paletteVisible);
+                        root.dismissTopLayer();
                         event.accepted = true;
                     }
                 }
@@ -119,13 +139,16 @@ Item {
                         id: appHeader
                         objectName: "xrayAppHeader"
                         theme: theme
-                        catalog: controller.catalog
                         capabilities: controller.capabilities
                         snapshot: controller.snapshot
                         offline: controller.offline
                         interactionEnabled: !controller.interactionBlocked
-                        onSearchAccepted: function(query) { controller.inspect(query); }
-                        onCatalogRequested: controller.requestCatalog()
+                        browserVisible: root.browserOpen
+                        onBrowserRequested: {
+                            root.browserOpen = !root.browserOpen;
+                            if (root.browserOpen)
+                                Qt.callLater(function() { targetBrowser.focusSearch(false); });
+                        }
                         onPickRequested: controller.pickWindow()
                         onPauseRequested: controller.toggleSampling()
                         onCapsuleRequested: controller.toggleDrawer(controller.capsuleDrawer)
@@ -136,38 +159,85 @@ Item {
                         onCloseRequested: controller.close()
                     }
 
-                    IdentityBar {
-                        Layout.fillWidth: true
-                        theme: theme
-                        snapshot: controller.snapshot
-                        previousMetrics: controller.previousMetrics
-                        onAlternativesRequested: controller.showDetails(DetailDomains.Alternatives)
-                        onCoverageRequested: if (controller.snapshot.coverage) controller.showDetails(DetailDomains.Coverage)
-                    }
-
-                    DashboardGrid {
-                        objectName: "xrayDashboard"
+                    Item {
+                        id: workspace
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        theme: theme
-                        snapshot: controller.snapshot
-                        cpuSamples: controller.cpuSamples
-                        memorySamples: controller.memorySamples
-                        performanceWindowSeconds: controller.performanceWindowSeconds
-                        busy: controller.busy
-                        onProcessSelected: function(pid) { controller.focusProcess(pid); }
-                        onDetailsRequested: function(domain) { controller.showDetails(domain); }
-                    }
 
-                    FooterBar {
-                        objectName: "xrayFooter"
-                        Layout.fillWidth: true
-                        theme: theme
-                        snapshot: controller.snapshot
-                        offline: controller.offline
-                        actionsEnabled: !controller.interactionBlocked
-                        onResetRequested: controller.resetBaseline()
-                        onActionRequested: function(action) { controller.requestAction(action); }
+                        Rectangle {
+                            visible: root.browserOpen && !root.browserPinned
+                            z: 20
+                            anchors.fill: parent
+                            color: theme.drawerScrim
+                            TapHandler { onTapped: root.browserOpen = false }
+                        }
+
+                        TargetBrowser {
+                            id: targetBrowser
+                            z: root.browserPinned ? 0 : 21
+                            visible: root.browserOpen
+                            width: root.browserPinned
+                                ? Math.min(theme.targetBrowserWidth, workspace.width * 0.28)
+                                : Math.min(theme.targetBrowserOverlayWidth, workspace.width * 0.86)
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.left: parent.left
+                            theme: theme
+                            catalog: controller.catalog
+                            target: controller.snapshot.target || ({})
+                            currentQuery: root.currentQuery
+                            interactionEnabled: !controller.interactionBlocked
+                            catalogLoading: controller.catalogRequested
+                            closable: true
+                            onSelected: function(query) { controller.inspect(query); }
+                            onCatalogRequested: controller.requestCatalog()
+                            onCloseRequested: root.browserOpen = false
+                        }
+
+                        ColumnLayout {
+                            id: dashboardColumn
+                            anchors.top: parent.top
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.browserOpen && root.browserPinned
+                                ? targetBrowser.width + theme.smallGap : 0
+                            spacing: theme.smallGap
+
+                            IdentityBar {
+                                Layout.fillWidth: true
+                                theme: theme
+                                snapshot: controller.snapshot
+                                previousMetrics: controller.previousMetrics
+                                onAlternativesRequested: controller.showDetails(DetailDomains.Alternatives)
+                                onCoverageRequested: if (controller.snapshot.coverage) controller.showDetails(DetailDomains.Coverage)
+                            }
+
+                            DashboardGrid {
+                                objectName: "xrayDashboard"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                theme: theme
+                                snapshot: controller.snapshot
+                                cpuSamples: controller.cpuSamples
+                                memorySamples: controller.memorySamples
+                                performanceWindowSeconds: controller.performanceWindowSeconds
+                                busy: controller.busy
+                                onProcessSelected: function(pid) { controller.focusProcess(pid); }
+                                onDetailsRequested: function(domain) { controller.showDetails(domain); }
+                            }
+
+                            FooterBar {
+                                objectName: "xrayFooter"
+                                Layout.fillWidth: true
+                                theme: theme
+                                snapshot: controller.snapshot
+                                offline: controller.offline
+                                actionsEnabled: !controller.interactionBlocked
+                                onResetRequested: controller.resetBaseline()
+                                onActionRequested: function(action) { controller.requestAction(action); }
+                            }
+                        }
                     }
                 }
 

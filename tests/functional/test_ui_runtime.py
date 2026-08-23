@@ -25,7 +25,9 @@ PICKER_ORACLE = Path(__file__).with_name("picker_lifecycle_oracle.qml")
     "requires a live Omarchy Quickshell session",
 )
 class UiRuntimeTests(unittest.TestCase):
-    def test_cancelled_window_picker_keeps_the_inspection_lifecycle_open(self) -> None:
+    def _run_picker(
+        self, pick_data: dict[str, object], expected_query: str = ""
+    ) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "ui").mkdir()
@@ -46,7 +48,7 @@ class UiRuntimeTests(unittest.TestCase):
                 "    if command == 'bootstrap':\n"
                 "        data = {'capabilities': {'windowPicker': True}, 'settings': {'refreshSeconds': 2, 'historySeconds': 300, 'capturePreview': False}, 'settingsDefaults': {'refreshSeconds': 2, 'historySeconds': 300, 'capturePreview': False}, 'settingsSpec': []}\n"
                 "    elif command == 'pickWindow':\n"
-                "        data = {'cancelled': True}\n"
+                f"        data = {pick_data!r}\n"
                 "    elif command in ('inspectFocused', 'catalog'):\n"
                 "        data = {}\n"
                 "    else:\n"
@@ -66,12 +68,32 @@ class UiRuntimeTests(unittest.TestCase):
                 errors="replace",
                 timeout=5,
                 check=False,
-                env={**os.environ, "XDG_STATE_HOME": str(root / "state")},
+                env={
+                    **os.environ,
+                    "XDG_STATE_HOME": str(root / "state"),
+                    "XRAY_PICKER_EXPECTED_QUERY": expected_query,
+                },
             )
         output = completed.stdout + "\n" + completed.stderr
         self.assertEqual(completed.returncode, 0, output)
         self.assertIn("XRAY_PICKER ok", output)
         self.assertNotIn("XRAY_PICKER_ERROR", output)
+
+    def test_cancelled_window_picker_keeps_the_inspection_lifecycle_open(self) -> None:
+        self._run_picker({"cancelled": True})
+
+    def test_window_picker_synchronizes_the_resolved_window_query(self) -> None:
+        self._run_picker(
+            {
+                "target": {
+                    "kind": "window-point",
+                    "value": "120,240",
+                    "query": "window:0xabc",
+                    "inspectionId": 1,
+                }
+            },
+            "window:0xabc",
+        )
 
     def test_backend_timeout_resolves_the_waiting_ui_callback(self) -> None:
         with TemporaryDirectory() as directory:

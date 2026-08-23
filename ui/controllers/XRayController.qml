@@ -40,7 +40,6 @@ Item {
         || pendingAction !== null || drawer !== ""
 
     signal closed()
-    signal paletteDismissRequested()
     signal querySynchronized(string query)
     signal clipboardRequested(string text)
     signal capsuleStatusChanged(string message)
@@ -61,7 +60,6 @@ Item {
 
     function open(payloadJson) {
         var generation = beginInspection();
-        root.paletteDismissRequested();
         root.querySynchronized("");
         opened = true;
         busy = true;
@@ -116,7 +114,6 @@ Item {
 
     function close() {
         beginInspection();
-        root.paletteDismissRequested();
         opened = false;
         drawer = "";
         detailSnapshot = ({});
@@ -158,7 +155,6 @@ Item {
         var generation = beginInspection();
         busy = true;
         root.querySynchronized(value);
-        root.paletteDismissRequested();
         bridge.send("inspect", {"query": value}, function(data, error) {
             if (isCurrentInspection(generation) && error)
                 showNotice(error);
@@ -201,7 +197,6 @@ Item {
         }
         var generation = beginInspection();
         root.querySynchronized("pid:" + pid);
-        root.paletteDismissRequested();
         busy = true;
         bridge.send("focusProcess", {"pid": pid}, function(data, error) {
             if (isCurrentInspection(generation) && error)
@@ -246,13 +241,6 @@ Item {
         noticeTimer.restart();
     }
 
-    function dismissTopLayer(paletteVisible) {
-        if (pendingAction) cancelActionAfterPointer();
-        else if (drawer) drawer = "";
-        else if (paletteVisible) root.paletteDismissRequested();
-        else close();
-    }
-
     function pickWindow() {
         if (!capabilities.windowPicker) {
             showNotice("Window picking is unavailable because slurp is not installed");
@@ -268,7 +256,11 @@ Item {
                 resumeRefreshIfEligible();
                 return;
             }
-            if (data && !data.cancelled) finishSnapshot(data, true, generation, true);
+            if (data && !data.cancelled) {
+                var query = String((data.target || {}).query || "");
+                if (query) root.querySynchronized(query);
+                finishSnapshot(data, true, generation, true);
+            }
             else {
                 capturingPreview = false;
                 resumeRefreshIfEligible();

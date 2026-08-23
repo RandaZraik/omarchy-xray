@@ -15,7 +15,14 @@ from xray.system.commands import CommandRunner
 from xray.system.descriptors import DescriptorInventory, collect_descriptors
 from xray.system.procfs import ProcFs
 from xray.targets.catalog_budget import constrain_catalog
-from xray.targets.query import quick_targets
+from xray.targets.query import TargetSpec, canonical_query, quick_targets
+
+
+def _catalog_row(row: dict[str, object], kind: str, value: object) -> dict[str, object]:
+    return {
+        **row,
+        "query": canonical_query(TargetSpec(kind, str(value or ""), "")),
+    }
 
 
 class TargetCatalog:
@@ -71,12 +78,41 @@ class TargetCatalog:
             if message
         ]
         raw_limited = list(dict.fromkeys(raw_limited))
+        windows = [_catalog_row(row, "window", row.get("address")) for row in windows]
+        processes = [_catalog_row(row, "process", row.get("pid")) for row in processes]
+        devices = [
+            _catalog_row(row, "process", row.get("pid"))
+            for row in devices
+            if row["active"]
+        ]
+        gpu_clients = [
+            _catalog_row(row, "process", row.get("pid")) for row in gpu_clients
+        ]
+        ports = [_catalog_row(row, "port", row.get("localPort")) for row in ports]
+        services = [
+            _catalog_row(
+                row,
+                "service",
+                (f"{row.get('scope')}:" if row.get("scope") else "")
+                + str(row.get("id") or ""),
+            )
+            for row in services
+        ]
+        containers = [
+            _catalog_row(
+                row,
+                "container",
+                (f"{row.get('runtime')}:" if row.get("runtime") else "")
+                + str(row.get("id") or row.get("name") or ""),
+            )
+            for row in containers
+        ]
         return constrain_catalog(
             {
                 "quickTargets": quick_targets(),
                 "windows": windows,
                 "processes": processes,
-                "devices": [row for row in devices if row["active"]],
+                "devices": devices,
                 "gpu": gpu_clients,
                 "ports": ports,
                 "services": services,

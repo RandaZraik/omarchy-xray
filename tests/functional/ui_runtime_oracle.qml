@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland
 import "ui" as XRay
 import "ui/controllers" as Controllers
 import "ui/drawers" as Drawers
@@ -78,15 +79,26 @@ ShellRoot {
 
     Controllers.XRayController { id: controller }
 
-    FloatingWindow {
+    PanelWindow {
         id: window
-        title: "Omarchy X-Ray UI truth oracle"
         visible: true
-        color: theme.canvas
-        width: root.requestedWidth
-        height: root.requestedHeight
+        color: theme.transparent
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        anchors { top: true; bottom: true; left: true; right: true }
+
+        Item {
+            id: testSurface
+            width: Math.min(root.requestedWidth, window.width)
+            height: Math.min(root.requestedHeight, window.height)
+            anchors.centerIn: parent
+
+            Rectangle { anchors.fill: parent; color: theme.canvas }
+        }
 
         ColumnLayout {
+            parent: testSurface
             anchors.fill: parent
             anchors.margins: 12
             spacing: theme.smallGap
@@ -94,12 +106,10 @@ ShellRoot {
             Views.AppHeader {
                 id: header
                 theme: theme
-                catalog: controller.catalog
                 capabilities: controller.capabilities
                 snapshot: controller.snapshot
                 interactionEnabled: !controller.interactionBlocked
-                onSearchAccepted: function(value) { root.record("search", value) }
-                onCatalogRequested: root.record("catalog")
+                onBrowserRequested: root.record("browser")
                 onPickRequested: root.record("pick")
                 onPauseRequested: root.record("pause")
                 onCapsuleRequested: root.record("capsule")
@@ -107,37 +117,72 @@ ShellRoot {
                 onCloseRequested: root.record("close")
             }
 
-            Views.IdentityBar {
-                Layout.fillWidth: true
-                theme: theme
-                snapshot: controller.snapshot
-            }
-
-            Views.DashboardGrid {
-                id: dashboard
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                theme: theme
-                snapshot: controller.snapshot
-                cpuSamples: controller.cpuSamples
-                memorySamples: controller.memorySamples
-                onProcessSelected: function(pid) { root.record("process", pid) }
-                onDetailsRequested: function(domain) { root.record("details", domain) }
-            }
+                readonly property bool browserPinned: width >= theme.targetBrowserPinnedWidth
 
-            Views.FooterBar {
-                id: footer
-                Layout.fillWidth: true
-                theme: theme
-                snapshot: controller.snapshot
-                actionsEnabled: !controller.interactionBlocked
-                onResetRequested: root.record("baseline")
-                onActionRequested: function(action) { root.record("action", action.id) }
+                Views.TargetBrowser {
+                    id: targetBrowser
+                    z: 2
+                    width: parent.browserPinned
+                        ? theme.targetBrowserWidth : theme.targetBrowserOverlayWidth
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    theme: theme
+                    catalog: controller.catalog
+                    target: controller.snapshot.target || ({})
+                    currentQuery: root.query
+                    interactionEnabled: !controller.interactionBlocked
+                    closable: false
+                    onSelected: function(value) { root.record("search", value) }
+                    onCatalogRequested: root.record("catalog")
+                }
+
+                ColumnLayout {
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.leftMargin: parent.browserPinned
+                        ? targetBrowser.width + theme.smallGap : 0
+                    spacing: theme.smallGap
+
+                    Views.IdentityBar {
+                        Layout.fillWidth: true
+                        theme: theme
+                        snapshot: controller.snapshot
+                    }
+
+                    Views.DashboardGrid {
+                        id: dashboard
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        theme: theme
+                        snapshot: controller.snapshot
+                        cpuSamples: controller.cpuSamples
+                        memorySamples: controller.memorySamples
+                        onProcessSelected: function(pid) { root.record("process", pid) }
+                        onDetailsRequested: function(domain) { root.record("details", domain) }
+                    }
+
+                    Views.FooterBar {
+                        id: footer
+                        Layout.fillWidth: true
+                        theme: theme
+                        snapshot: controller.snapshot
+                        actionsEnabled: !controller.interactionBlocked
+                        onResetRequested: root.record("baseline")
+                        onActionRequested: function(action) { root.record("action", action.id) }
+                    }
+                }
             }
         }
 
         Drawers.DetailDrawer {
             id: processDrawer
+            parent: testSurface
             visible: false
             width: 520
             anchors.top: parent.top
@@ -150,6 +195,7 @@ ShellRoot {
 
         Drawers.DetailDrawer {
             id: overflowDrawer
+            parent: testSurface
             visible: false
             width: 520
             height: 260
@@ -161,6 +207,7 @@ ShellRoot {
 
         Drawers.SettingsDrawer {
             id: settingsDrawer
+            parent: testSurface
             visible: false
             width: 440
             anchors.top: parent.top
@@ -174,6 +221,7 @@ ShellRoot {
 
         Drawers.CapsuleDrawer {
             id: capsuleDrawer
+            parent: testSurface
             visible: false
             width: 440
             anchors.top: parent.top
@@ -189,12 +237,24 @@ ShellRoot {
 
         Views.ConfirmationOverlay {
             id: confirmation
+            parent: testSurface
             visible: false
             anchors.fill: parent
             theme: theme
             action: ({"id": "terminate", "label": "Terminate process"})
             onCancelled: root.record("cancel")
             onConfirmed: function(actionId) { root.record("confirmed", actionId) }
+        }
+
+        Views.TargetBrowser {
+            id: navigationBrowser
+            parent: testSurface
+            visible: false
+            width: theme.targetBrowserWidth
+            height: 500
+            theme: theme
+            currentQuery: ""
+            onSelected: function(value) { root.record("ownerSearch", value) }
         }
     }
 
@@ -233,30 +293,97 @@ ShellRoot {
                 root.require(header.height === 46, "header height changed")
                 root.require(footer.height === 46, "footer height changed")
 
-                header.catalog = {
-                    "processes": [{"name": "xray-truth", "pid": controller.snapshot.target.ownerPid}]
+                targetBrowser.catalog = {
+                    "quickTargets": [{"label": "Microphone", "query": "microphone"}],
+                    "processes": [{
+                        "name": "xray-truth",
+                        "pid": controller.snapshot.target.ownerPid,
+                        "query": "pid:" + controller.snapshot.target.ownerPid
+                    }],
+                    "limited": ["Process catalog is limited"]
                 }
-                header.queryText = "xray-truth"
-                header.focusSearch(true)
-                var searchField = root.find(header, "objectName", "xraySearchField")
+                root.require(targetBrowser.targetCount === 1,
+                    "shortcut actions leaked into the target count")
+                root.require(targetBrowser.shortcutCount === 1,
+                    "quick inspect shortcuts were not counted separately")
+                root.require(targetBrowser.catalogLimited,
+                    "catalog truncation was not exposed in the browser")
+                var limitedLabel = root.find(targetBrowser, "text", "LIMITED")
+                root.require(limitedLabel && limitedLabel.visible,
+                    "catalog truncation was not rendered in the browser header")
+                var expandedBrowserRows = targetBrowser.rows.length
+                targetBrowser.toggleGroup("QUICK INSPECT")
+                root.require(targetBrowser.isGroupCollapsed("QUICK INSPECT"),
+                    "target group did not collapse")
+                root.require(targetBrowser.rows.length === expandedBrowserRows - 1,
+                    "collapsed target group did not hide its rows")
+                root.require(targetBrowser.rows.some(function(row) {
+                    return row.rowType === "section"
+                        && row.label === "QUICK INSPECT" && row.count === 1
+                }), "collapsed target group lost its header or count")
+                targetBrowser.toggleGroup("QUICK INSPECT")
+                root.require(!targetBrowser.isGroupCollapsed("QUICK INSPECT")
+                        && targetBrowser.rows.length === expandedBrowserRows,
+                    "target group did not expand back to its complete contents")
+                targetBrowser.synchronizeQuery("xray-truth")
+                targetBrowser.focusSearch(true)
+                var searchField = root.find(targetBrowser, "objectName", "xrayTargetSearchField")
                 root.require(searchField && searchField.activeFocus,
                     "the search field did not receive keyboard focus")
                 root.require(searchField.selectedText === "xray-truth",
                     "select-all did not select the complete search query")
                 controller.refreshInFlight = true
-                root.require(header.interactionEnabled && searchField.enabled,
+                root.require(targetBrowser.interactionEnabled && searchField.enabled,
                     "background refresh disabled the search field")
                 root.require(searchField.activeFocus
                         && searchField.selectedText === "xray-truth",
                     "background refresh discarded search focus or selection")
-                var palette = root.descendants(header).find(function(item) {
-                    return item && item.acceptCurrent !== undefined && item.matches !== undefined
-                })
-                root.require(palette && palette.matches.length === 1,
-                    "the real target palette did not expose its known match")
-                root.require(palette.acceptCurrent(), "keyboard palette acceptance failed")
+                root.require(targetBrowser.searchMatches.length === 1,
+                    "the target browser did not expose its known match")
+                root.require(targetBrowser.acceptCurrent(),
+                    "keyboard target acceptance failed")
+                root.require(targetBrowser.queryText === "xray-truth",
+                    "selecting a target replaced the browser filter")
+
+                navigationBrowser.synchronizeQuery(":9000")
+                navigationBrowser.currentQuery = ":9000"
+                navigationBrowser.target = {
+                    "inspectionId": 9000,
+                    "kind": "port",
+                    "value": "9000",
+                    "ownerPid": 10,
+                    "alternatives": [
+                        {"pid": 10, "label": "One"},
+                        {"pid": 11, "label": "Two"},
+                        {"pid": 12, "label": "Three"}
+                    ]
+                }
+                root.require(navigationBrowser.ownerMatches.length === 3,
+                    "shared-port owners were not kept together")
+                navigationBrowser.choose(navigationBrowser.ownerMatches[1])
+                navigationBrowser.currentQuery = "pid:11"
+                navigationBrowser.target = {
+                    "inspectionId": 9001,
+                    "kind": "window-point",
+                    "value": "120,240",
+                    "query": "window:0xabc",
+                    "ownerPid": 12
+                }
+                root.require(navigationBrowser.stableTargetQuery === "window:0xabc",
+                    "resolved target query did not replace stale navigation state")
+                navigationBrowser.target = {
+                    "inspectionId": 9001,
+                    "kind": "process",
+                    "value": "11",
+                    "ownerPid": 11,
+                    "alternatives": [{"pid": 11, "label": "Two"}]
+                }
+                root.require(navigationBrowser.queryText === ":9000"
+                        && navigationBrowser.ownerMatches.length === 3,
+                    "owner navigation discarded its original result set")
 
                 ;[
+                    ["Hide target browser", "browser"],
                     ["Pick a window", "pick"],
                     ["Pause live sampling", "pause"],
                     ["Saved reports", "capsule"],
@@ -385,13 +512,16 @@ ShellRoot {
                     "failed capsule import replaced the current inspection")
                 root.record("callbackError")
                 ;["catalog", "pick", "pause", "capsule", "settings", "close",
-                   "baseline", "action", "search", "applied", "export", "report",
+                   "browser", "baseline", "action", "search", "ownerSearch",
+                   "applied", "export", "report",
                    "open", "compare", "cancel", "confirmed", "samplingPaused",
                    "samplingResumed", "catalogBackend", "callbackError"].forEach(function(name) {
                     root.require(root.events[name] !== undefined, "control emitted no signal: " + name)
                 })
                 root.require(root.events.search === "pid:" + controller.snapshot.target.ownerPid,
-                    "palette accepted the wrong query")
+                    "target browser accepted the wrong query")
+                root.require(root.events.ownerSearch === "pid:11",
+                    "shared-port owner navigation selected the wrong process")
                 root.require(root.events.action === "pause", "footer dispatched the wrong action")
                 root.require(root.events.confirmed === "terminate",
                     "confirmation dispatched the wrong action")

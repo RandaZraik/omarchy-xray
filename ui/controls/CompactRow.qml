@@ -10,6 +10,8 @@ Item {
     property bool selected: false
     property bool interactive: true
     property color idleColor: theme.transparent
+    property color selectedColor: theme.selected
+    property color hoverColor: theme.selected
     property int titleElide: Text.ElideRight
     property int horizontalPadding: 8
     property int textSpacing: 1
@@ -20,9 +22,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: root.theme.radius
-        color: root.selected || (root.interactive && hover.hovered)
-            ? root.theme.selected
-            : root.idleColor
+        color: root.selected
+            ? root.selectedColor
+            : root.interactive && hover.hovered ? root.hoverColor : root.idleColor
     }
 
     Column {

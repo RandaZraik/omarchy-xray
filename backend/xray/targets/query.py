@@ -15,6 +15,26 @@ class TargetSpec:
     label: str
 
 
+def canonical_query(spec: TargetSpec, window_address: object = "") -> str:
+    """Return the stable query that reopens a resolved target."""
+    kind = spec.kind
+    value = spec.value
+    if kind == "window-point":
+        address = str(window_address or "")
+        return f"window:{address}" if address else ""
+    if kind == "window":
+        return f"window:{value}"
+    if kind == "process":
+        return f"pid:{value}"
+    if kind == "port":
+        return f":{value}"
+    if kind in {"service", "container"}:
+        return f"{kind}:{value}"
+    if kind == "catalog":
+        return ""
+    return value
+
+
 def match_score(needle: str, values: object) -> int:
     normalized = needle.casefold()
     scores = (

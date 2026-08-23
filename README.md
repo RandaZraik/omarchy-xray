@@ -37,6 +37,8 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
 ## Features
 
 - Finds the exact process tree behind the selected target.
+- Keeps open apps, processes, ports, and system targets in a searchable side
+  browser, so you can inspect several matches without rebuilding the search.
 - Shows how it started through sessions, shells, systemd units,
   supervisors, and containers.
 - Shows CPU, memory, disk activity, connections, files, locks, devices, and
@@ -55,7 +57,7 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
 
 - `Ctrl+K` — choose another target
 - `Ctrl+R` — refresh now
-- `Esc` — close the topmost palette, drawer, confirmation, or X-Ray
+- `Esc` — close the topmost target browser, drawer, confirmation, or X-Ray
 - Click a process — inspect that process and its subtree
 - Click `VIEW ALL` in a card — open the complete list
 

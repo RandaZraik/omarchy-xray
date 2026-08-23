@@ -7,8 +7,15 @@ ShellRoot {
 
     property int stage: 0
     property double deadline: Date.now() + 3000
+    property string synchronizedQuery: ""
+    property string expectedQuery: Quickshell.env("XRAY_PICKER_EXPECTED_QUERY")
 
-    Controllers.XRayController { id: controller }
+    Controllers.XRayController {
+        id: controller
+        onQuerySynchronized: function(query) {
+            if (query) root.synchronizedQuery = query
+        }
+    }
 
     Component.onCompleted: controller.open("{}")
 
@@ -41,6 +48,12 @@ ShellRoot {
             if (controller.pickingWindow) return
             if (!controller.opened) {
                 console.log("XRAY_PICKER_ERROR cancelled picker closed the inspection")
+                Qt.quit()
+                return
+            }
+            if (root.expectedQuery
+                    && root.synchronizedQuery !== root.expectedQuery) {
+                console.log("XRAY_PICKER_ERROR picked target query was not synchronized")
                 Qt.quit()
                 return
             }

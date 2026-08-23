@@ -16,6 +16,7 @@ ShellRoot {
     property var controller: null
     property var dashboard: null
     property var header: null
+    property var browser: null
     property var footer: null
     property var settingsDrawer: null
     property var capsuleDrawer: null
@@ -171,7 +172,7 @@ ShellRoot {
                         "notice": root.controller ? root.controller.notice : "",
                         "target": root.controller ? (root.controller.snapshot.target || {}) : {},
                         "catalogRequested": root.controller ? root.controller.catalogRequested : null,
-                        "paletteVisible": root.header ? root.header.paletteVisible : null,
+                        "browserVisible": root.browser ? root.browser.visible : null,
                         "catalogProcesses": root.controller
                             ? (root.controller.catalog.processes || []).length : null
                     }))
@@ -202,6 +203,7 @@ ShellRoot {
                 root.controller = root.named("xrayController")
                 root.dashboard = root.named("xrayDashboard")
                 root.header = root.named("xrayAppHeader")
+                root.browser = root.named("xrayTargetBrowser")
                 root.footer = root.named("xrayFooter")
                 root.settingsDrawer = root.named("xraySettingsDrawer")
                 root.capsuleDrawer = root.named("xrayCapsuleDrawer")
@@ -209,8 +211,11 @@ ShellRoot {
                 root.panel = root.named("xrayPanel")
                 if (!root.controller || root.controller.busy
                         || !((root.controller.snapshot.target || {}).rootPid)) return
-                root.require(root.dashboard && root.header && root.footer,
+                root.require(root.dashboard && root.header && root.browser && root.footer,
                     "the shipped dashboard composition is incomplete")
+                root.require(root.findProperty(
+                    root.browser, "tooltipText", "Hide target browser"
+                ), "the pinned target browser cannot be dismissed")
                 root.require(root.settingsDrawer && root.capsuleDrawer && root.detailDrawer,
                     "the shipped drawers are incomplete")
                 root.require(root.panel && root.panel.visible,
@@ -271,19 +276,18 @@ ShellRoot {
             }
 
             if (root.stage === 2) {
-                if (!root.header.paletteVisible) return
+                if (!root.browser.visible) return
                 if (root.controller.catalogRequested
                         || !(root.controller.catalog.processes || []).length) return
                 root.require(root.dashboard.y === root.dashboardY
                     && root.dashboard.height === root.dashboardHeight,
-                    "search palette pushed the dashboard instead of overlaying it")
-                root.header.queryText = "xray-truth"
-                var palette = root.named("xrayTargetPalette")
-                root.require(palette && palette.matches.length >= 1,
-                    "production search palette has no live process match")
+                    "opening the target browser changed the pinned dashboard geometry")
+                root.browser.synchronizeQuery("xray-truth")
+                root.require(root.browser.searchMatches.length >= 1,
+                    "production target browser has no live process match")
                 root.expectPanelStable = true
-                root.require(palette.acceptCurrent(),
-                    "production search palette could not accept its exact match")
+                root.require(root.browser.acceptCurrent(),
+                    "production target browser could not accept its exact match")
                 root.stage = 20
                 return
             }
@@ -291,10 +295,12 @@ ShellRoot {
             if (root.stage === 20) {
                 root.require(!root.controller.capturingPreview,
                     "accepted search hid X-Ray to recapture its preview")
-                if (root.controller.busy || root.header.paletteVisible) return
+                if (root.controller.busy) return
                 root.require(root.panel.visible && root.unexpectedPanelHides === 0,
                     "accepted search hid the inspection panel")
                 root.expectPanelStable = false
+                root.require(root.browser.queryText === "xray-truth",
+                    "accepted search replaced the original browser filter")
                 root.require(Number(root.controller.snapshot.target.ownerPid)
                     === root.expectedPid,
                     "accepted production search inspected the wrong process")
@@ -306,7 +312,6 @@ ShellRoot {
             }
 
             if (root.stage === 3) {
-                if (root.header.paletteVisible) return
                 var settings = root.findProperty(root.header, "tooltipText", "X-Ray settings")
                 root.require(settings, "production settings button is missing")
                 settings.clicked()

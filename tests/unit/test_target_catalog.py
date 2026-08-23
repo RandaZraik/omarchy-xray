@@ -27,32 +27,62 @@ class TargetCatalogTests(unittest.TestCase):
 
     def test_catalog_collects_each_expensive_source_once(self) -> None:
         services = MagicMock()
-        services.catalog.return_value = ([{"id": "demo.service"}], [])
+        services.catalog.return_value = (
+            [{"id": "demo.service", "scope": "user"}],
+            [],
+        )
         containers = MagicMock()
-        containers.catalog.return_value = ([{"id": "demo"}], [])
+        containers.catalog.return_value = (
+            [{"id": "demo", "runtime": "podman"}],
+            [],
+        )
         catalog = TargetCatalog(
             ProcFs(Path("/missing")), MagicMock(), services, containers
         )
 
         with (
             patch("xray.targets.catalog.same_user_pids", return_value=[41]),
-            patch("xray.targets.catalog.collect_descriptors") as descriptors,
             patch(
-                "xray.targets.catalog.list_windows", return_value=([], "")
+                "xray.targets.catalog.collect_descriptors",
+                return_value=DescriptorInventory((), ()),
+            ) as descriptors,
+            patch(
+                "xray.targets.catalog.list_windows",
+                return_value=([{"address": "0xabc"}], ""),
             ) as windows,
             patch(
                 "xray.targets.catalog.collect_pipewire",
                 return_value=([{"pid": 41, "active": True}], ""),
             ) as pipewire,
             patch(
-                "xray.targets.catalog.collect_gpu_clients", return_value=([], [])
+                "xray.targets.catalog.collect_gpu_clients",
+                return_value=([{"pid": 41}], []),
             ) as gpu,
-            patch.object(catalog, "_listening_ports", return_value=([], [])) as ports,
-            patch.object(catalog, "_processes", return_value=([], [])) as processes,
+            patch.object(
+                catalog,
+                "_listening_ports",
+                return_value=([{"localPort": 9000}], []),
+            ) as ports,
+            patch.object(
+                catalog,
+                "_processes",
+                return_value=([{"pid": 41, "name": "worker"}], []),
+            ) as processes,
         ):
             result = catalog.collect()
 
-        self.assertEqual(result["devices"], [{"pid": 41, "active": True}])
+        expected_queries = {
+            "windows": "window:0xabc",
+            "processes": "pid:41",
+            "devices": "pid:41",
+            "gpu": "pid:41",
+            "ports": ":9000",
+            "services": "service:user:demo.service",
+            "containers": "container:podman:demo",
+        }
+        for domain, query in expected_queries.items():
+            with self.subTest(domain=domain):
+                self.assertEqual(result[domain][0]["query"], query)
         for source in (descriptors, windows, pipewire, gpu, ports, processes):
             source.assert_called_once()
         services.catalog.assert_called_once()

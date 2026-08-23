@@ -73,6 +73,10 @@ QtObject {
     readonly property real quietSurfaceMix: 0.1
     readonly property real raisedSurfaceMix: 0.14
     readonly property real previewSurfaceMix: 0.045
+    readonly property real controlFocusSurfaceMix: 0.03
+    readonly property real controlFocusBorderMix: 0.22
+    readonly property real controlActiveSurfaceMix: 0.055
+    readonly property real controlHoverSurfaceMix: 0.03
     readonly property real tintedSurfaceMix: 0.09
     readonly property real dangerSurfaceMix: 0.08
     readonly property real cardBorderTextMix: 0.34
@@ -87,6 +91,18 @@ QtObject {
     readonly property color quietSurface: blend(panel, text, quietSurfaceMix)
     readonly property color raisedSurface: blend(quietSurface, accent, raisedSurfaceMix)
     readonly property color previewSurface: blend(quietSurface, accent, previewSurfaceMix)
+    readonly property color controlFocusSurface: blend(
+        quietSurface, accent, controlFocusSurfaceMix
+    )
+    readonly property color controlFocusBorder: blend(
+        cardBorder, accent, controlFocusBorderMix
+    )
+    readonly property color controlActiveSurface: blend(
+        quietSurface, text, controlActiveSurfaceMix
+    )
+    readonly property color controlHoverSurface: blend(
+        quietSurface, text, controlHoverSurfaceMix
+    )
     readonly property color dangerSurface: blend(panel, danger, dangerSurfaceMix)
     readonly property color cardBorder: blend(panel, text, cardBorderTextMix)
     readonly property color accentBorder: blend(border, accent, accentBorderMix)
@@ -122,6 +138,21 @@ QtObject {
     readonly property int panelPadding: Style.space(16)
     readonly property int panelMaxWidth: Style.space(1400)
     readonly property int panelMaxHeight: Style.space(840)
+    readonly property int targetBrowserWidth: Style.space(264)
+    readonly property int targetBrowserOverlayWidth: Style.space(304)
+    readonly property int targetBrowserPinnedWidth: Style.space(1180)
+    readonly property int targetBrowserContentPadding: Style.space(10)
+    readonly property int targetBrowserHeaderHeight: Style.space(38)
+    readonly property int targetBrowserCloseSize: Style.space(28)
+    readonly property int targetBrowserSearchHeight: Style.space(38)
+    readonly property int targetBrowserFilterHeight: Style.space(30)
+    readonly property int targetBrowserRowHeight: Style.space(44)
+    readonly property int targetBrowserSectionHeight: Style.space(26)
+    readonly property int targetBrowserTabIndicatorHeight: Math.max(2, borderWidth * 2)
+    readonly property int targetBrowserBeamWidth: Math.max(2, borderWidth * 2)
+    readonly property int footerExpandedWidth: Style.space(1120)
+    readonly property int footerSidePadding: Style.space(8)
+    readonly property int footerSpacing: Style.space(6)
     readonly property int outerGap: Style.gapsOut
     readonly property int borderWidth: Math.max(1, Style.normalBorderWidth)
     readonly property int dividerWidth: 1

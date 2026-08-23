@@ -63,7 +63,7 @@ function firstCommand(command) {
 
 function icon(name) {
     var icons = {
-        "application": "󰣆", "process": "󰆍", "window": "󰖲", "port": "󰒍",
+        "application": "󰣆", "process": "󰆍", "window": "󰖲", "port": "󰒍", "quick": "󰋋",
         "file": "󰈙", "device": "󰋋", "window-point": "󰆿", "focus": "󰢄",
         "folder": "󰉋", "terminal": "󰆍", "pause": "󰏤", "play": "󰐊",
         "stop": "󰓛", "restart": "󰑐", "coverage": "󰦝", "settings": "󰒓",

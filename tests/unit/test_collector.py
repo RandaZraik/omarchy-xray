@@ -148,6 +148,7 @@ class SnapshotCollectorTests(unittest.TestCase):
             snapshot = collector.collect(target, {}, False)
 
         self.assertEqual(snapshot["target"]["rootPid"], 41)
+        self.assertEqual(snapshot["target"]["query"], "pid:41")
         self.assertEqual([row["pid"] for row in snapshot["processes"]], [41, 42])
         self.assertEqual(snapshot["coverage"]["domains"]["processes"], "limited")
         self.assertTrue(

@@ -70,6 +70,7 @@ class QmlLogicTests(unittest.TestCase):
             "containerSearch": "container:docker:abcdef",
             "deviceSearch": "pid:12",
             "gpuSearch": "pid:13",
+            "gpuFallbackLabelSearch": "pid:14",
             "portSearch": ":5173",
         }
         for name, query in expected.items():
@@ -79,6 +80,38 @@ class QmlLogicTests(unittest.TestCase):
                 if name != "windowSearch":
                     self.assertEqual(len(self.data[name]), 1)
         self.assertEqual(self.data["boundedSearch"], [])
+        self.assertEqual(self.data["exactPortSearch"][0]["query"], ":5173")
+
+    def test_target_browser_groups_and_owner_choices_are_complete(self) -> None:
+        self.assertEqual(
+            [row["kind"] for row in self.data["windowOnlySearch"]], ["window"]
+        )
+        self.assertEqual(
+            [row["kind"] for row in self.data["processOnlySearch"]], ["process"]
+        )
+        self.assertEqual(self.data["browseKinds"][:2], ["quick", "window"])
+        self.assertEqual(set(self.data["browseKinds"][2:4]), {"device", "gpu"})
+        self.assertEqual(
+            self.data["browseKinds"][4:],
+            ["port", "container", "service", "process"],
+        )
+        self.assertEqual(self.data["filters"][0]["id"], "all")
+        self.assertEqual(self.data["filters"][0]["label"], "ALL")
+        self.assertEqual(self.data["targetCount"], 7)
+        self.assertEqual(self.data["shortcutCount"], 1)
+        self.assertEqual(self.data["partitionCount"], self.data["targetCount"])
+        self.assertEqual(self.data["completeSearchCount"], 100)
+        self.assertEqual(
+            len(self.data["browseKinds"]),
+            self.data["targetCount"] + self.data["shortcutCount"],
+        )
+        self.assertEqual(len(self.data["portBrowse"]), 1)
+        self.assertEqual(self.data["portBrowse"][0]["query"], ":5173")
+        self.assertEqual(
+            [row["query"] for row in self.data["ownerMatches"]],
+            ["pid:10", "pid:11"],
+        )
+        self.assertTrue(self.data["ownerMatches"][0]["selected"])
 
     def test_network_endpoints_are_unambiguous(self) -> None:
         self.assertEqual(self.data["ipv4Endpoint"], "127.0.0.1:443")

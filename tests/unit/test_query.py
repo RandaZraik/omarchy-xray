@@ -3,6 +3,8 @@ import unittest
 
 from xray.config import LIMITS
 from xray.targets.query import (
+    TargetSpec,
+    canonical_query,
     parse_query,
     quick_targets,
     rank_containers,
@@ -11,6 +13,30 @@ from xray.targets.query import (
 
 
 class QueryTests(unittest.TestCase):
+    def test_canonical_queries_reopen_every_explicit_target(self) -> None:
+        expected = {
+            TargetSpec("process", "42", "Process"): "pid:42",
+            TargetSpec("port", "9000", "Port"): ":9000",
+            TargetSpec("window", "0xabc", "Window"): "window:0xabc",
+            TargetSpec(
+                "service", "user:demo.service", "Service"
+            ): "service:user:demo.service",
+            TargetSpec(
+                "container", "podman:demo", "Container"
+            ): "container:podman:demo",
+            TargetSpec("device", "camera", "Camera"): "camera",
+            TargetSpec("file", "/tmp/demo", "File"): "/tmp/demo",
+        }
+        for spec, query in expected.items():
+            with self.subTest(spec=spec):
+                self.assertEqual(canonical_query(spec), query)
+
+    def test_picked_point_canonicalizes_to_the_resolved_window(self) -> None:
+        picked = TargetSpec("window-point", "120,240", "Picked window")
+
+        self.assertEqual(canonical_query(picked, "0xabc"), "window:0xabc")
+        self.assertEqual(canonical_query(picked), "")
+
     def test_quick_targets_share_the_parser_contract(self) -> None:
         targets = quick_targets()
         self.assertEqual(

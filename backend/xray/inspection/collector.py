@@ -16,6 +16,7 @@ from xray.runtime.containers import ContainerInspector
 from xray.runtime.systemd import SystemdInspector
 from xray.system.commands import CommandRunner
 from xray.system.procfs import ProcFs
+from xray.targets.query import canonical_query
 from xray.targets.resolver import ResolutionInventory, ResolvedTarget
 
 
@@ -254,6 +255,9 @@ class SnapshotCollector:
             "target": {
                 "kind": resolved.spec.kind,
                 "value": resolved.spec.value,
+                "query": canonical_query(
+                    resolved.spec, resolved.window.get("address", "")
+                ),
                 "label": resolved.spec.label,
                 "rootPid": 0,
                 "ownerPid": 0,

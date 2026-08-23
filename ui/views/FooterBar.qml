@@ -11,6 +11,7 @@ Rectangle {
     property var snapshot: ({})
     property bool offline: false
     property bool actionsEnabled: true
+    readonly property bool expandedStatus: width >= theme.footerExpandedWidth
     signal actionRequested(var action)
     signal resetRequested()
 
@@ -32,9 +33,9 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 6
-        spacing: 10
+        anchors.leftMargin: root.theme.footerSidePadding
+        anchors.rightMargin: root.theme.footerSidePadding
+        spacing: root.theme.footerSpacing
 
         Rectangle {
             width: 7
@@ -50,6 +51,7 @@ Rectangle {
             font.letterSpacing: root.theme.utilityTracking
         }
         PlainText {
+            visible: root.expandedStatus
             text: "SINCE OPENED"
             color: root.theme.muted
             font.family: root.theme.dataFont
@@ -58,6 +60,7 @@ Rectangle {
             Layout.leftMargin: 8
         }
         PlainText {
+            visible: root.expandedStatus
             readonly property int total: root.changeCount()
             text: total ? total + (total === 1 ? " CHANGE" : " CHANGES") : "NO CHANGES"
             color: total ? root.theme.text : root.theme.muted
