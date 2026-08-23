@@ -1,0 +1,133 @@
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without the v prefix, for example 0.1.0
+        required: true
+        type: string
+      target:
+        description: Master or a full commit SHA from master
+        required: true
+        default: master
+        type: string
+      previous_tag:
+        description: Optional tag where generated notes should begin
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    outputs:
+      target_sha: ${{ steps.validated.outputs.target_sha }}
+      version: ${{ steps.validated.outputs.version }}
+    steps:
+      - name: Check out the proposed release
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.target }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release metadata
+        env:
+          TARGET: ${{ inputs.target }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use x.y.z without a v prefix" >&2
+            exit 1
+          fi
+
+          if [[ "$TARGET" != "master" && ! "$TARGET" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Target must be master or a full commit SHA" >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin master
+          if ! git merge-base --is-ancestor HEAD origin/master; then
+            echo "Release target must be part of master" >&2
+            exit 1
+          fi
+
+          MANIFEST_VERSION=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"])')
+          if [[ "$MANIFEST_VERSION" != "$VERSION" ]]; then
+            echo "manifest.json is $MANIFEST_VERSION, not $VERSION" >&2
+            exit 1
+          fi
+
+      - name: Record the immutable release target
+        id: validated
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "target_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  portable-tests:
+    needs: validate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      target: ${{ needs.validate.outputs.target_sha }}
+
+  draft:
+    needs: [validate, portable-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Create draft release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ needs.validate.outputs.target_sha }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          PREVIOUS_TAG: ${{ inputs.previous_tag }}
+        run: |
+          TAG="v$VERSION"
+          gh api \
+            --method POST \
+            "repos/$GH_REPO/git/refs" \
+            -f ref="refs/tags/$TAG" \
+            -f sha="$TARGET_SHA" >/dev/null
+
+          cleanup_tag() {
+            gh api --method DELETE "repos/$GH_REPO/git/refs/tags/$TAG" \
+              || echo "Could not remove tag $TAG after draft creation failed" >&2
+          }
+          trap cleanup_tag EXIT
+
+          ARGS=(
+            "$TAG"
+            --draft
+            --fail-on-no-commits
+            --generate-notes
+            --verify-tag
+            --title "X-Ray $VERSION"
+          )
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            ARGS+=(--notes-start-tag "$PREVIOUS_TAG")
+          fi
+
+          RELEASE_URL=$(gh release create "${ARGS[@]}")
+          trap - EXIT
+          {
+            echo "## Draft release ready"
+            echo
+            echo "Review and edit [$TAG]($RELEASE_URL) under Releases."
+            echo "Nothing is published until you click **Publish release**."
+          } >> "$GITHUB_STEP_SUMMARY"
