@@ -27,7 +27,7 @@ Rectangle {
 
     height: 46
     radius: theme.radius
-    color: theme.quietSurface
+    color: theme.summarySurface
     border.color: theme.accentBorder
     border.width: theme.borderWidth
 

@@ -41,8 +41,8 @@ Rectangle {
     signal closeRequested()
 
     radius: theme.radius
-    color: theme.panel
-    border.color: theme.border
+    color: theme.browserSurface
+    border.color: theme.cardBorder
     border.width: theme.borderWidth
     clip: true
 

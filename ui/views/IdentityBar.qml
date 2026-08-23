@@ -40,7 +40,7 @@ Rectangle {
 
     height: 68
     radius: theme.radius
-    color: theme.quietSurface
+    color: theme.summarySurface
     border.color: theme.cardBorder
     border.width: theme.borderWidth
     clip: true

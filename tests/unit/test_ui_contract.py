@@ -10,6 +10,22 @@ def source(path: str) -> str:
     return (ROOT / path).read_text()
 
 
+def yaml_mapping_block(document: str, key: str, indent: int) -> str:
+    lines = document.splitlines()
+    header = " " * indent + key + ":"
+    start = next(index for index, line in enumerate(lines) if line == header)
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        line_indent = len(line) - len(line.lstrip())
+        if line_indent <= indent:
+            end = index
+            break
+    return "\n".join(lines[start:end])
+
+
 class UiContractTests(unittest.TestCase):
     """Static checks for security and cross-component invariants.
 
@@ -113,6 +129,39 @@ class UiContractTests(unittest.TestCase):
         workflow = source(".github/workflows/ci.yml")
         self.assertIn("qml-qt6", workflow)
         self.assertIn("test_qml_logic.py", workflow)
+
+    def test_release_validation_is_isolated_from_release_writes(self) -> None:
+        workflow = source(".github/workflows/prepare-release.yml")
+        jobs = yaml_mapping_block(workflow, "jobs", 0)
+        validate = yaml_mapping_block(jobs, "validate", 2)
+        portable_tests = yaml_mapping_block(jobs, "portable-tests", 2)
+        draft = yaml_mapping_block(jobs, "draft", 2)
+
+        self.assertRegex(workflow, r"(?m)^permissions: \{\}$")
+        self.assertRegex(validate, r"(?m)^    permissions:\n      contents: read$")
+        self.assertRegex(validate, r"actions/checkout@[0-9a-f]{40}(?:\s|$)")
+        self.assertIn("persist-credentials: false", validate)
+        self.assertNotIn("contents: write", validate)
+        self.assertIn("fetch-depth: 0", validate)
+        self.assertIn("git merge-base --is-ancestor HEAD origin/master", validate)
+
+        self.assertRegex(
+            portable_tests,
+            r"(?m)^    permissions:\n      contents: read$",
+        )
+        self.assertIn("uses: ./.github/workflows/ci.yml", portable_tests)
+        self.assertIn("target: ${{ needs.validate.outputs.target_sha }}", portable_tests)
+
+        self.assertIn("needs: [validate, portable-tests]", draft)
+        self.assertRegex(draft, r"(?m)^    permissions:\n      contents: write$")
+        self.assertNotIn("actions/checkout@", draft)
+        self.assertIn('ref="refs/tags/$TAG"', draft)
+        self.assertIn('sha="$TARGET_SHA"', draft)
+        self.assertIn("--verify-tag", draft)
+        self.assertIn("trap cleanup_tag EXIT", draft)
+        self.assertNotIn('--target "$TARGET_SHA"', draft)
+        self.assertNotIn("inputs.target", draft)
+        self.assertNotIn("pull_request_target", workflow)
 
 
 if __name__ == "__main__":

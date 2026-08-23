@@ -4,6 +4,12 @@ on:
   push:
     branches: [master]
   pull_request:
+  workflow_call:
+    inputs:
+      target:
+        description: Exact commit to validate when called by another workflow
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -14,8 +20,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check out the reviewed commit
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          ref: ${{ inputs.target || github.sha }}
           persist-credentials: false
 
       - name: Compile the backend

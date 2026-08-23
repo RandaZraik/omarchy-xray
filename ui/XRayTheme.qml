@@ -58,8 +58,8 @@ QtObject {
     readonly property real networkHueOffset: -0.11
     readonly property real storageHueOffset: 0.48
     readonly property real minimumAccentSaturation: 0.18
-    readonly property real semanticSaturationScale: 0.9
-    readonly property real minimumSemanticValue: 0.72
+    readonly property real semanticSaturationScale: 1.15
+    readonly property real minimumSemanticValue: 0.8
     readonly property real neutralAccentTextMix: 0.3
     readonly property color cpuAccent: accent
     readonly property color processAccent: semanticAccent(processHueOffset)
@@ -69,26 +69,33 @@ QtObject {
     readonly property color deviceAccent: networkAccent
     readonly property color alertAccent: danger
 
-    readonly property real mutedTextMix: 0.68
-    readonly property real quietSurfaceMix: 0.1
+    // Surface depth is derived from Omarchy's active background, foreground,
+    // and accent. The dashboard stays calm while cards, navigation, and the
+    // selected-target strip remain visually distinct in both dark and light
+    // themes.
+    readonly property real mutedTextMix: 0.55
+    readonly property real quietSurfaceMix: 0.065
+    readonly property real browserSurfaceMix: 0.025
     readonly property real raisedSurfaceMix: 0.14
-    readonly property real previewSurfaceMix: 0.045
-    readonly property real controlFocusSurfaceMix: 0.03
-    readonly property real controlFocusBorderMix: 0.22
-    readonly property real controlActiveSurfaceMix: 0.055
-    readonly property real controlHoverSurfaceMix: 0.03
-    readonly property real tintedSurfaceMix: 0.09
-    readonly property real dangerSurfaceMix: 0.08
-    readonly property real cardBorderTextMix: 0.34
+    readonly property real previewSurfaceMix: 0.055
+    readonly property real controlFocusSurfaceMix: 0.07
+    readonly property real controlFocusBorderMix: 0.32
+    readonly property real controlActiveSurfaceMix: 0.095
+    readonly property real controlHoverSurfaceMix: 0.06
+    readonly property real tintedSurfaceMix: 0.12
+    readonly property real dangerSurfaceMix: 0.1
+    readonly property real cardBorderTextMix: 0.4
     readonly property real accentBorderMix: 0.48
     readonly property real strongAccentBorderMix: 0.78
-    readonly property real sectionAccentMix: 0.22
-    readonly property real metricAccentMix: 0.46
-    readonly property real gridAccentMix: 0.24
-    readonly property real hoverBorderMix: 0.32
-    readonly property real headingAccentMix: 0.34
-    readonly property color muted: blend(panel, text, mutedTextMix)
+    readonly property real sectionAccentMix: 0.58
+    readonly property real metricAccentMix: 0.72
+    readonly property real gridAccentMix: 0.42
+    readonly property real hoverBorderMix: 0.44
+    readonly property real headingAccentMix: 0.64
+    readonly property color muted: blend(Color.muted, text, mutedTextMix)
     readonly property color quietSurface: blend(panel, text, quietSurfaceMix)
+    readonly property color browserSurface: blend(panel, accent, browserSurfaceMix)
+    readonly property color summarySurface: previewSurface
     readonly property color raisedSurface: blend(quietSurface, accent, raisedSurfaceMix)
     readonly property color previewSurface: blend(quietSurface, accent, previewSurfaceMix)
     readonly property color controlFocusSurface: blend(
@@ -156,8 +163,8 @@ QtObject {
     readonly property int outerGap: Style.gapsOut
     readonly property int borderWidth: Math.max(1, Style.normalBorderWidth)
     readonly property int dividerWidth: 1
-    readonly property real dividerOpacity: 0.42
-    readonly property real subtleDividerOpacity: 0.46
+    readonly property real dividerOpacity: 0.78
+    readonly property real subtleDividerOpacity: 0.56
     readonly property real connectorOpacity: 0.55
     readonly property real disabledOpacity: 0.3
     readonly property real previewOpacity: 0.72
