@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import "../controls"
 import "../Format.js" as Format
 
-Rectangle {
+Item {
     id: root
 
     required property var theme
@@ -38,35 +38,36 @@ Rectangle {
         return "read + write";
     }
 
-    height: 68
-    radius: theme.radius
-    color: theme.summarySurface
-    border.color: theme.cardBorder
-    border.width: theme.borderWidth
-    clip: true
-
-    Rectangle {
-        width: 3
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        color: root.theme.accent
-    }
+    height: theme.telemetryHeight
 
     RowLayout {
         anchors.fill: parent
-        spacing: 0
+        spacing: root.theme.smallGap
 
-        Item {
+        Rectangle {
             Layout.fillWidth: true
-            Layout.preferredWidth: 360
-            Layout.minimumWidth: 250
+            Layout.preferredWidth: root.theme.telemetryTargetWidth
+            Layout.minimumWidth: root.theme.telemetryTargetMinimumWidth
             Layout.fillHeight: true
+            radius: root.theme.radius
+            color: root.theme.summarySurface
+            border.color: root.theme.cardBorder
+            border.width: root.theme.borderWidth
+            clip: true
+
+            Rectangle {
+                width: root.theme.telemetryRailWidth
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                color: root.theme.accent
+            }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 14
-                anchors.rightMargin: 12
+                anchors.leftMargin: root.theme.telemetryModulePadding
+                    + root.theme.telemetryRailWidth
+                anchors.rightMargin: root.theme.telemetryModulePadding
                 spacing: 4
 
                 Item { Layout.fillHeight: true }
@@ -136,27 +137,38 @@ Rectangle {
 
         Repeater {
             model: [
-                {"label": "CPU", "value": Format.percent(root.metrics.cpuPercent), "detail": root.cpuDetail()},
-                {"label": "Memory", "value": Format.bytes(root.metrics.memoryBytes), "detail": (root.metrics.threads || 0) + " threads"},
-                {"label": "Disk I/O", "value": root.metrics.ioAvailable === false ? "—" : Format.rate(Number(root.metrics.readBytesPerSecond || 0) + Number(root.metrics.writeBytesPerSecond || 0)), "detail": root.ioDetail()},
-                {"label": "GPU", "value": Format.percent(root.metrics.gpuPercent), "detail": ((root.snapshot.devices || {}).gpu || []).length + " DRM clients"},
-                {"label": "Uptime", "value": Format.duration(root.metrics.uptimeSeconds), "detail": root.metrics.uptimeSeconds === null || root.metrics.uptimeSeconds === undefined ? "unavailable" : root.snapshot.samplingPaused ? "sampling paused" : "live sample"}
+                {"label": "CPU", "value": Format.percent(root.metrics.cpuPercent), "detail": root.cpuDetail(), "accent": root.theme.cpuAccent},
+                {"label": "Memory", "value": Format.bytes(root.metrics.memoryBytes), "detail": (root.metrics.threads || 0) + " threads", "accent": root.theme.memoryAccent},
+                {"label": "Disk I/O", "value": root.metrics.ioAvailable === false ? "—" : Format.rate(Number(root.metrics.readBytesPerSecond || 0) + Number(root.metrics.writeBytesPerSecond || 0)), "detail": root.ioDetail(), "accent": root.theme.storageAccent},
+                {"label": "GPU", "value": Format.percent(root.metrics.gpuPercent), "detail": ((root.snapshot.devices || {}).gpu || []).length + " DRM clients", "accent": root.theme.deviceAccent},
+                {"label": "Uptime", "value": Format.duration(root.metrics.uptimeSeconds), "detail": root.metrics.uptimeSeconds === null || root.metrics.uptimeSeconds === undefined ? "unavailable" : root.snapshot.samplingPaused ? "sampling paused" : "live sample", "accent": root.theme.processAccent}
             ]
 
-            delegate: Item {
+            delegate: Rectangle {
                 required property var modelData
                 Layout.fillWidth: true
-                Layout.preferredWidth: 132
-                Layout.minimumWidth: 92
+                Layout.preferredWidth: root.theme.telemetryMetricWidth
+                Layout.minimumWidth: root.theme.telemetryMetricMinimumWidth
                 Layout.fillHeight: true
+                radius: root.theme.radius
+                color: root.theme.quietSurface
+                border.color: root.theme.cardBorder
+                border.width: root.theme.borderWidth
 
-                Rectangle { width: 1; height: parent.height; color: root.theme.border }
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: root.theme.telemetrySignalHeight
+                    color: modelData.accent
+                }
                 SummaryMetric {
                     anchors.fill: parent
                     theme: root.theme
                     label: modelData.label
                     value: modelData.value
                     detail: modelData.detail
+                    accentColor: modelData.accent
                 }
             }
         }

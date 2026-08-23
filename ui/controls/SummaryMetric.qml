@@ -8,11 +8,12 @@ Item {
     property string label: ""
     property string value: "—"
     property string detail: ""
+    property color accentColor: theme.metricText
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 8
+        anchors.leftMargin: root.theme.telemetryModulePadding
+        anchors.rightMargin: root.theme.telemetryModulePadding
         spacing: 2
 
         Item { Layout.fillHeight: true }
@@ -28,7 +29,7 @@ Item {
         PlainText {
             Layout.fillWidth: true
             text: root.value
-            color: root.theme.metricText
+            color: root.accentColor
             font.family: root.theme.dataFont
             font.pixelSize: root.theme.summaryFontSize
             font.bold: true
