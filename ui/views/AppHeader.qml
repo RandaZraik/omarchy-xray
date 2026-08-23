@@ -85,6 +85,7 @@ Item {
 
                 Ui.TextField {
                     id: searchField
+                    objectName: "xraySearchField"
                     anchors.fill: parent
                     enabled: root.interactionEnabled
                     foreground: root.theme.text

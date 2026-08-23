@@ -97,6 +97,7 @@ ShellRoot {
                 catalog: controller.catalog
                 capabilities: controller.capabilities
                 snapshot: controller.snapshot
+                interactionEnabled: !controller.interactionBlocked
                 onSearchAccepted: function(value) { root.record("search", value) }
                 onCatalogRequested: root.record("catalog")
                 onPickRequested: root.record("pick")
@@ -129,6 +130,7 @@ ShellRoot {
                 Layout.fillWidth: true
                 theme: theme
                 snapshot: controller.snapshot
+                actionsEnabled: !controller.interactionBlocked
                 onResetRequested: root.record("baseline")
                 onActionRequested: function(action) { root.record("action", action.id) }
             }
@@ -234,8 +236,19 @@ ShellRoot {
                 header.catalog = {
                     "processes": [{"name": "xray-truth", "pid": controller.snapshot.target.ownerPid}]
                 }
-                header.focusSearch(false)
                 header.queryText = "xray-truth"
+                header.focusSearch(true)
+                var searchField = root.find(header, "objectName", "xraySearchField")
+                root.require(searchField && searchField.activeFocus,
+                    "the search field did not receive keyboard focus")
+                root.require(searchField.selectedText === "xray-truth",
+                    "select-all did not select the complete search query")
+                controller.refreshInFlight = true
+                root.require(header.interactionEnabled && searchField.enabled,
+                    "background refresh disabled the search field")
+                root.require(searchField.activeFocus
+                        && searchField.selectedText === "xray-truth",
+                    "background refresh discarded search focus or selection")
                 var palette = root.descendants(header).find(function(item) {
                     return item && item.acceptCurrent !== undefined && item.matches !== undefined
                 })
@@ -259,7 +272,9 @@ ShellRoot {
                 root.require(baseline, "missing baseline control")
                 baseline.clicked()
                 var pauseAction = root.find(footer, "text", "Pause process")
-                root.require(pauseAction, "missing process action button")
+                root.require(pauseAction && pauseAction.enabled,
+                    "background refresh disabled the process action button")
+                controller.refreshInFlight = false
                 pauseAction.clicked()
 
                 processDrawer.visible = true

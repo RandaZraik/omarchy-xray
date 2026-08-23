@@ -35,8 +35,8 @@ Item {
     property int inspectionGeneration: 0
     readonly property int refreshIntervalMs: sampling.refreshIntervalMs
     readonly property int performanceWindowSeconds: sampling.performanceWindowSeconds
-    readonly property bool interactionBlocked: busy || refreshInFlight
-        || capturingPreview || pickingWindow || yieldingFocus || actionInFlight
+    readonly property bool interactionBlocked: busy || capturingPreview
+        || pickingWindow || yieldingFocus || actionInFlight
         || pendingAction !== null || drawer !== ""
 
     signal closed()
