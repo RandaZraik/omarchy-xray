@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.randazraik.xray",
   "name": "Omarchy X-Ray",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "RandaZraik",
   "license": "MIT",
   "description": "Trace any window, process, service, container, port, file, or device to the process behind it, how it started, and what it is using.",
