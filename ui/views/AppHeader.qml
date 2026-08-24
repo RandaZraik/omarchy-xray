@@ -22,9 +22,9 @@ Item {
     signal closeRequested()
 
     Layout.fillWidth: true
-    Layout.preferredHeight: 54
-    Layout.minimumHeight: 54
-    Layout.maximumHeight: 54
+    Layout.preferredHeight: 48
+    Layout.minimumHeight: 48
+    Layout.maximumHeight: 48
 
     Rectangle {
         anchors.fill: parent

@@ -25,7 +25,7 @@ Rectangle {
         return total;
     }
 
-    height: 52
+    height: 46
     radius: theme.cardRadius
     color: theme.surfaceLow
     border.color: theme.cardBorder

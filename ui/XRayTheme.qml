@@ -123,47 +123,47 @@ QtObject {
     readonly property string displayFont: Style.font.family
     readonly property string bodyFont: displayFont
     readonly property string dataFont: Style.font.family
-    readonly property int microFontSize: Style.font.caption
-    readonly property int captionFontSize: Style.font.caption
-    readonly property int bodyFontSize: Style.font.bodySmall
-    readonly property int labelFontSize: Style.font.body
-    readonly property int summaryFontSize: Style.font.subtitle
-    readonly property int sectionFontSize: Style.font.heading
-    readonly property int metricFontSize: Style.font.heading
-    readonly property int heroFontSize: Style.font.display
-    readonly property real headingTracking: 0.7
-    readonly property real utilityTracking: 0.8
-    readonly property real labelTracking: 1.1
-    readonly property real brandTracking: 2.4
-    readonly property real taglineTracking: 1.2
-    readonly property int radius: Math.max(10, Style.cornerRadius)
-    readonly property int panelRadius: Math.max(16, radius + 6)
-    readonly property int cardRadius: Math.max(12, radius + 2)
-    readonly property int controlRadius: Math.max(8, radius - 2)
+    readonly property int microFontSize: Math.max(11, Style.font.caption)
+    readonly property int captionFontSize: Math.max(11, Style.font.caption)
+    readonly property int bodyFontSize: Math.max(12, Style.font.bodySmall)
+    readonly property int labelFontSize: Math.max(13, Style.font.body)
+    readonly property int summaryFontSize: Math.max(14, Style.font.subtitle)
+    readonly property int sectionFontSize: Math.max(16, Style.font.heading)
+    readonly property int metricFontSize: Math.max(17, Style.font.heading)
+    readonly property int heroFontSize: Math.max(24, Style.font.display)
+    readonly property real headingTracking: 0.45
+    readonly property real utilityTracking: 0.65
+    readonly property real labelTracking: 0.9
+    readonly property real brandTracking: 1.8
+    readonly property real taglineTracking: 1.0
+    readonly property int radius: Math.max(6, Math.min(10, Style.cornerRadius))
+    readonly property int panelRadius: radius + 4
+    readonly property int cardRadius: radius
+    readonly property int controlRadius: Math.max(5, radius - 2)
     readonly property int pillRadius: 999
-    readonly property int gap: Style.space(10)
-    readonly property int smallGap: Style.space(6)
-    readonly property int pad: Style.space(12)
-    readonly property int panelPadding: Style.space(18)
-    readonly property int panelMaxWidth: Style.space(1400)
-    readonly property int panelMaxHeight: Style.space(840)
+    readonly property int gap: Style.space(6)
+    readonly property int smallGap: Style.space(4)
+    readonly property int pad: Style.space(9)
+    readonly property int panelPadding: Style.space(12)
+    readonly property int panelMaxWidth: Style.space(1520)
+    readonly property int panelMaxHeight: Style.space(900)
     readonly property int targetBrowserWidth: Style.space(264)
     readonly property int targetBrowserOverlayWidth: Style.space(304)
     readonly property int targetBrowserPinnedWidth: Style.space(1180)
-    readonly property int targetBrowserContentPadding: Style.space(10)
-    readonly property int targetBrowserHeaderHeight: Style.space(38)
-    readonly property int targetBrowserCloseSize: Style.space(28)
-    readonly property int targetBrowserSearchHeight: Style.space(38)
-    readonly property int targetBrowserFilterHeight: Style.space(30)
-    readonly property int targetBrowserRowHeight: Style.space(44)
-    readonly property int targetBrowserSectionHeight: Style.space(26)
+    readonly property int targetBrowserContentPadding: Style.space(8)
+    readonly property int targetBrowserHeaderHeight: Style.space(34)
+    readonly property int targetBrowserCloseSize: Style.space(26)
+    readonly property int targetBrowserSearchHeight: Style.space(36)
+    readonly property int targetBrowserFilterHeight: Style.space(28)
+    readonly property int targetBrowserRowHeight: Style.space(42)
+    readonly property int targetBrowserSectionHeight: Style.space(24)
     readonly property int targetBrowserBeamWidth: Math.max(2, borderWidth * 2)
-    readonly property int cardHeaderHeight: Style.space(38)
-    readonly property int evidenceHeaderHeight: Style.space(28)
-    readonly property int evidenceRowHeight: Style.space(31)
-    readonly property int drawerMargin: Style.space(10)
-    readonly property int drawerPadding: Style.space(20)
-    readonly property int drawerHeaderHeight: Style.space(64)
+    readonly property int cardHeaderHeight: Style.space(32)
+    readonly property int evidenceHeaderHeight: Style.space(27)
+    readonly property int evidenceRowHeight: Style.space(32)
+    readonly property int drawerMargin: Style.space(6)
+    readonly property int drawerPadding: Style.space(12)
+    readonly property int drawerHeaderHeight: Style.space(58)
     readonly property int processEvidenceExpandedWidth: Style.space(720)
     // Dense system data still has to be comfortably scannable at native
     // monitor scale. Keep these above the shell's caption-size defaults.
@@ -182,18 +182,18 @@ QtObject {
     readonly property int processEvidenceBadgeFontSize: Math.max(
         microFontSize, bodyFontSize
     )
-    readonly property int processEvidenceCommandHeight: Style.space(78)
-    readonly property int processEvidenceHeaderHeight: Style.space(42)
+    readonly property int processEvidenceCommandHeight: Style.space(68)
+    readonly property int processEvidenceHeaderHeight: Style.space(36)
     readonly property int processEvidenceRowHeight: Style.space(64)
     readonly property int processEvidenceIndent: Style.space(8)
     readonly property int processEvidenceBranchWidth: Style.space(9)
     readonly property int processEvidenceMaximumDepth: 7
-    readonly property int telemetryHeight: Style.space(82)
+    readonly property int telemetryHeight: Style.space(72)
     readonly property int telemetryTargetWidth: Style.space(340)
     readonly property int telemetryTargetMinimumWidth: Style.space(240)
     readonly property int telemetryMetricWidth: Style.space(132)
     readonly property int telemetryMetricMinimumWidth: Style.space(86)
-    readonly property int telemetryModulePadding: Style.space(12)
+    readonly property int telemetryModulePadding: Style.space(9)
     readonly property int telemetryRailWidth: Math.max(2, borderWidth * 2)
     readonly property int telemetrySignalHeight: Math.max(2, borderWidth * 2)
     readonly property int performanceLegendHeight: Style.space(24)
@@ -209,8 +209,8 @@ QtObject {
     readonly property real performancePointRadius: Math.max(2, borderWidth * 2)
     readonly property real minimumCpuChartScale: 10
     readonly property int footerExpandedWidth: Style.space(1120)
-    readonly property int footerSidePadding: Style.space(10)
-    readonly property int footerSpacing: Style.space(7)
+    readonly property int footerSidePadding: Style.space(8)
+    readonly property int footerSpacing: Style.space(5)
     readonly property int outerGap: Style.gapsOut
     readonly property int borderWidth: Math.max(1, Style.normalBorderWidth)
     readonly property int dividerWidth: 1
