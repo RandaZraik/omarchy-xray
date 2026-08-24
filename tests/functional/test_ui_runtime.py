@@ -18,6 +18,9 @@ ORACLE = Path(__file__).with_name("ui_runtime_oracle.qml")
 PUBLIC_ORACLE = Path(__file__).with_name("public_ui_oracle.qml")
 TIMEOUT_ORACLE = Path(__file__).with_name("backend_timeout_oracle.qml")
 PICKER_ORACLE = Path(__file__).with_name("picker_lifecycle_oracle.qml")
+DRAWER_PERFORMANCE_ORACLE = Path(__file__).with_name(
+    "drawer_performance_oracle.qml"
+)
 
 
 @unittest.skipUnless(
@@ -25,6 +28,48 @@ PICKER_ORACLE = Path(__file__).with_name("picker_lifecycle_oracle.qml")
     "requires a live Omarchy Quickshell session",
 )
 class UiRuntimeTests(unittest.TestCase):
+    def test_large_drawer_sections_toggle_without_replacing_the_model(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "config"
+            config.mkdir()
+            shutil.copy2(DRAWER_PERFORMANCE_ORACLE, config / "shell.qml")
+            shutil.copytree(PROJECT_ROOT / "ui", config / "ui")
+            shutil.copytree(OMARCHY_IMPORTS / "Commons", config / "Commons")
+            shutil.copytree(OMARCHY_IMPORTS / "Ui", config / "Ui")
+            completed = subprocess.run(
+                [str(QUICKSHELL), "--path", str(config / "shell.qml")],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=15,
+                check=False,
+                env={
+                    **os.environ,
+                    "XDG_STATE_HOME": str(root / "state"),
+                },
+            )
+        output = completed.stdout + "\n" + completed.stderr
+        self.assertEqual(completed.returncode, 0, output)
+        marker = next(
+            (
+                line.partition("XRAY_DRAWER_PERF ")[2]
+                for line in output.splitlines()
+                if "XRAY_DRAWER_PERF " in line
+            ),
+            "",
+        )
+        self.assertTrue(marker, output)
+        result = json.loads(marker)
+        self.assertEqual(result["sourceCount"], 2500)
+        self.assertEqual(result["resourceCount"], 1250)
+        self.assertEqual(result["collapsedCount"], 1)
+        self.assertEqual(result["expandedCount"], 1251)
+        self.assertLess(result["collapseElapsedMs"], 250)
+        self.assertLess(result["expandElapsedMs"], 250)
+
     def _run_picker(
         self, pick_data: dict[str, object], expected_query: str = ""
     ) -> None:
@@ -274,8 +319,8 @@ class UiRuntimeTests(unittest.TestCase):
                     self.assertEqual(result["targetPid"], truth["pid"])
                     self.assertGreaterEqual(result["processRows"], 2)
                     self.assertGreaterEqual(result["filteredRows"], 1)
-                    self.assertEqual(result["headerHeight"], 48)
-                    self.assertEqual(result["footerHeight"], 46)
+                    self.assertEqual(result["headerHeight"], 42)
+                    self.assertEqual(result["footerHeight"], 38)
                     self.assertTrue(result["fontFamily"])
 
     @staticmethod

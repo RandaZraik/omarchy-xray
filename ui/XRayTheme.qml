@@ -24,6 +24,30 @@ QtObject {
         return blend(cardBorder, tint, hoverBorderMix);
     }
 
+    function focusedSurface(tint) {
+        return blend(surfaceHigh, tint, focusSurfaceAccentMix);
+    }
+
+    function focusedBorder(tint) {
+        return blend(cardBorder, tint, focusBorderAccentMix);
+    }
+
+    function toneColor(tone) {
+        var colors = {
+            "cpu": cpuAccent,
+            "process": processAccent,
+            "memory": memoryAccent,
+            "network": networkAccent,
+            "storage": storageAccent,
+            "device": deviceAccent,
+            "runtime": runtimeAccent,
+            "warning": storageAccent,
+            "danger": danger,
+            "neutral": text
+        }
+        return colors[String(tone || "")] || accent
+    }
+
     function headingColor(tint) {
         return blend(text, tint, headingAccentMix);
     }
@@ -76,7 +100,10 @@ QtObject {
     readonly property real metricAccentMix: 0.46
     readonly property real gridAccentMix: 0.24
     readonly property real hoverBorderMix: 0.34
+    readonly property real cardHoverOverlayOpacity: 0.035
     readonly property real headingAccentMix: 0.58
+    readonly property real focusSurfaceAccentMix: 0.12
+    readonly property real focusBorderAccentMix: 0.5
     readonly property color muted: blend(Color.muted, text, mutedTextMix)
     readonly property color quietSurface: blend(panel, text, quietSurfaceMix)
     readonly property color previewSurface: blend(quietSurface, accent, previewSurfaceMix)
@@ -101,9 +128,7 @@ QtObject {
     readonly property color surfaceLow: blend(panel, text, 0.028)
     readonly property color surfaceMid: blend(panel, text, 0.052)
     readonly property color surfaceHigh: blend(panel, text, 0.082)
-    readonly property color surfaceHighlight: withAlpha(text, 0.075)
     readonly property color accentSurface: blend(panel, accent, 0.075)
-    readonly property color accentSurfaceStrong: blend(panel, accent, 0.13)
     readonly property color accentGlow: withAlpha(accent, 0.17)
     readonly property color accentGlowSoft: withAlpha(accent, 0.075)
     readonly property color drawerScrim: withAlpha(canvas, 0.68)
@@ -115,56 +140,81 @@ QtObject {
     // Reserve semantic colors for abnormal process states.
     readonly property color inspectorAccent: processAccent
     readonly property color inspectorAccentText: headingColor(processAccent)
-    readonly property color inspectorTableSurface: surfaceMid
-    readonly property color inspectorHeaderSurface: surfaceHigh
-    readonly property color inspectorRaisedSurface: surfaceHigh
     readonly property color inspectorSelectedSurface: blend(panel, processAccent, 0.13)
+
+    // One restrained chassis, with semantic color identifying each evidence
+    // domain. This keeps the screen dense without turning it into a pile of
+    // independent floating cards.
+    readonly property color consoleSurface: blend(panel, text, 0.018)
+    readonly property color consoleBorder: blend(panel, text, 0.24)
+    readonly property int consoleRadius: 4
+    readonly property int consoleGap: 4
+    // Three evidence rows plus the card header must remain scannable at
+    // native monitor scale.
+    readonly property int consoleTopRowHeight: 164
+    readonly property int consoleCommandHeight: 31
+    readonly property int consoleTableHeaderHeight: 27
+    readonly property int consoleProcessRowHeight: 31
 
     readonly property string displayFont: Style.font.family
     readonly property string bodyFont: displayFont
     readonly property string dataFont: Style.font.family
-    readonly property int microFontSize: Math.max(11, Style.font.caption)
-    readonly property int captionFontSize: Math.max(11, Style.font.caption)
-    readonly property int bodyFontSize: Math.max(12, Style.font.bodySmall)
-    readonly property int labelFontSize: Math.max(13, Style.font.body)
-    readonly property int summaryFontSize: Math.max(14, Style.font.subtitle)
-    readonly property int sectionFontSize: Math.max(16, Style.font.heading)
-    readonly property int metricFontSize: Math.max(17, Style.font.heading)
-    readonly property int heroFontSize: Math.max(24, Style.font.display)
+    readonly property int microFontSize: Math.max(10, Style.font.caption)
+    readonly property int captionFontSize: Math.max(10, Style.font.caption)
+    readonly property int bodyFontSize: Math.max(11, Style.font.bodySmall)
+    readonly property int labelFontSize: Math.max(12, Style.font.body)
+    readonly property int summaryFontSize: Math.max(13, Style.font.subtitle)
+    readonly property int sectionFontSize: Math.max(15, Style.font.heading)
+    readonly property int metricFontSize: Math.max(16, Style.font.heading)
+    readonly property int heroFontSize: Math.max(21, Style.font.display)
+    readonly property int brandFontSize: Math.max(14, Style.font.subtitle)
+    readonly property int brandTaglineFontSize: Math.max(8, microFontSize - 1)
     readonly property real headingTracking: 0.45
     readonly property real utilityTracking: 0.65
     readonly property real labelTracking: 0.9
-    readonly property real brandTracking: 1.8
-    readonly property real taglineTracking: 1.0
+    readonly property real brandTracking: 1.35
+    readonly property real taglineTracking: 0.85
     readonly property int radius: Math.max(6, Math.min(10, Style.cornerRadius))
-    readonly property int panelRadius: radius + 4
-    readonly property int cardRadius: radius
-    readonly property int controlRadius: Math.max(5, radius - 2)
+    readonly property int panelRadius: 8
+    readonly property int cardRadius: 3
+    readonly property int controlRadius: 3
     readonly property int pillRadius: 999
-    readonly property int gap: Style.space(6)
-    readonly property int smallGap: Style.space(4)
-    readonly property int pad: Style.space(9)
-    readonly property int panelPadding: Style.space(12)
-    readonly property int panelMaxWidth: Style.space(1520)
-    readonly property int panelMaxHeight: Style.space(900)
-    readonly property int targetBrowserWidth: Style.space(264)
-    readonly property int targetBrowserOverlayWidth: Style.space(304)
-    readonly property int targetBrowserPinnedWidth: Style.space(1180)
-    readonly property int targetBrowserContentPadding: Style.space(8)
-    readonly property int targetBrowserHeaderHeight: Style.space(34)
-    readonly property int targetBrowserCloseSize: Style.space(26)
-    readonly property int targetBrowserSearchHeight: Style.space(36)
-    readonly property int targetBrowserFilterHeight: Style.space(28)
-    readonly property int targetBrowserRowHeight: Style.space(42)
-    readonly property int targetBrowserSectionHeight: Style.space(24)
+    readonly property int gap: 8
+    readonly property int smallGap: 4
+    readonly property int pad: 7
+    readonly property int panelPadding: 7
+    readonly property int panelMaxWidth: 1580
+    readonly property int panelMaxHeight: 900
+    readonly property int targetBrowserWidth: 264
+    readonly property int targetBrowserContentPadding: 9
+    readonly property int targetBrowserHeaderHeight: 34
+    readonly property int targetBrowserCloseSize: 27
+    readonly property int targetBrowserSearchHeight: 34
+    readonly property int targetBrowserFilterHeight: 27
+    readonly property int targetBrowserRowHeight: 38
+    readonly property int targetBrowserSectionHeight: 25
+    readonly property int targetBrowserChildIndent: pad * 2 + 1
     readonly property int targetBrowserBeamWidth: Math.max(2, borderWidth * 2)
-    readonly property int cardHeaderHeight: Style.space(32)
-    readonly property int evidenceHeaderHeight: Style.space(27)
-    readonly property int evidenceRowHeight: Style.space(32)
-    readonly property int drawerMargin: Style.space(6)
-    readonly property int drawerPadding: Style.space(12)
-    readonly property int drawerHeaderHeight: Style.space(58)
-    readonly property int processEvidenceExpandedWidth: Style.space(720)
+    readonly property int cardHeaderHeight: 28
+    readonly property int evidenceHeaderHeight: 24
+    readonly property int evidenceRowHeight: 28
+    readonly property int drawerMargin: 8
+    readonly property int drawerPadding: 9
+    readonly property int drawerHeaderHeight: 46
+    readonly property int drawerSummaryHeight: 52
+    readonly property int drawerSectionRowHeight: 32
+    readonly property int drawerConnectionRowHeight: 50
+    readonly property int drawerResourceRowHeight: 52
+    readonly property int drawerCauseRowHeight: 54
+    readonly property int drawerFindingBaseHeight: 74
+    readonly property int drawerFindingEvidenceHeight: 25
+    readonly property int drawerFindingNextHeight: 42
+    readonly property int drawerListInset: 8
+    readonly property int drawerCauseBadgeSize: 24
+    readonly property int drawerCauseConnectorX: pad + drawerCauseBadgeSize / 2
+    readonly property int drawerCauseTextIndent: pad + drawerCauseBadgeSize + gap
+    readonly property int compactRowHeight: 38
+    readonly property int processEvidenceExpandedWidth: 660
     // Dense system data still has to be comfortably scannable at native
     // monitor scale. Keep these above the shell's caption-size defaults.
     readonly property int processEvidenceHeaderFontSize: Math.max(
@@ -182,18 +232,22 @@ QtObject {
     readonly property int processEvidenceBadgeFontSize: Math.max(
         microFontSize, bodyFontSize
     )
-    readonly property int processEvidenceCommandHeight: Style.space(68)
-    readonly property int processEvidenceHeaderHeight: Style.space(36)
-    readonly property int processEvidenceRowHeight: Style.space(64)
+    readonly property int processEvidenceCommandHeight: 48
+    readonly property int processEvidenceHeaderHeight: 28
+    readonly property int processEvidenceRowHeight: 40
     readonly property int processEvidenceIndent: Style.space(8)
     readonly property int processEvidenceBranchWidth: Style.space(9)
     readonly property int processEvidenceMaximumDepth: 7
-    readonly property int telemetryHeight: Style.space(72)
-    readonly property int telemetryTargetWidth: Style.space(340)
-    readonly property int telemetryTargetMinimumWidth: Style.space(240)
-    readonly property int telemetryMetricWidth: Style.space(132)
-    readonly property int telemetryMetricMinimumWidth: Style.space(86)
-    readonly property int telemetryModulePadding: Style.space(9)
+    readonly property int telemetryHeight: 78
+    readonly property int telemetryTargetWidth: 330
+    readonly property int telemetryTargetMinimumWidth: 280
+    readonly property int telemetryTraceWidth: 260
+    readonly property int telemetryTraceMinimumWidth: 220
+    readonly property int telemetryTraceHeaderHeight: 18
+    readonly property int telemetryTraceTimelineHeight: 12
+    readonly property int telemetryMetricWidth: 112
+    readonly property int telemetryMetricMinimumWidth: 78
+    readonly property int telemetryModulePadding: 7
     readonly property int telemetryRailWidth: Math.max(2, borderWidth * 2)
     readonly property int telemetrySignalHeight: Math.max(2, borderWidth * 2)
     readonly property int performanceLegendHeight: Style.space(24)

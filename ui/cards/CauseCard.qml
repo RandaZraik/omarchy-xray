@@ -26,7 +26,7 @@ Card {
 
         PlainText {
             width: parent.width
-            height: 25
+            height: root.theme.evidenceRowHeight
             text: root.cause.summary || "Launch details are unavailable"
             color: root.theme.text
             font.family: root.theme.bodyFont
@@ -41,7 +41,7 @@ Card {
                 required property var modelData
                 required property int index
                 width: parent.width
-                height: 25
+                height: root.theme.evidenceRowHeight
 
                 Rectangle {
                     x: 10
@@ -70,7 +70,7 @@ Card {
                     text: modelData.title || "Process"
                     color: index === root.displayNodes.length - 1 ? root.theme.text : root.theme.muted
                     font.family: root.theme.bodyFont
-                    font.pixelSize: root.theme.captionFontSize
+                    font.pixelSize: root.theme.bodyFontSize
                     font.bold: index === root.displayNodes.length - 1
                     elide: Text.ElideRight
                 }

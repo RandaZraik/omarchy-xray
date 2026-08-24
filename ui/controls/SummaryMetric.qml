@@ -36,7 +36,9 @@ Item {
             elide: Text.ElideRight
         }
         PlainText {
+            visible: root.detail !== ""
             Layout.fillWidth: true
+            Layout.preferredHeight: visible ? implicitHeight : 0
             text: root.detail
             color: root.theme.muted
             font.family: root.theme.dataFont

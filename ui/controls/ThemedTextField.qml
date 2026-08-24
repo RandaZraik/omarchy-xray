@@ -7,9 +7,9 @@ TextField {
     required property var theme
     property color accentColor: theme.accent
     property color idleSurface: theme.surfaceHigh
-    property color focusSurface: theme.blend(theme.surfaceHigh, accentColor, 0.12)
+    property color focusSurface: theme.focusedSurface(accentColor)
     property color idleBorder: theme.cardBorder
-    property color focusBorder: theme.blend(theme.cardBorder, accentColor, 0.5)
+    property color focusBorder: theme.focusedBorder(accentColor)
 
     foreground: theme.text
     accent: accentColor

@@ -12,51 +12,37 @@ Item {
 
     height: theme.drawerHeaderHeight
 
-    Rectangle {
-        width: 7
-        height: 7
-        radius: root.theme.pillRadius
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.topMargin: root.theme.smallGap
-        color: root.accentColor
-
-        Rectangle {
-            anchors.centerIn: parent
-            width: parent.width + root.theme.gap
-            height: width
-            radius: root.theme.pillRadius
-            color: root.theme.withAlpha(root.accentColor, 0.16)
-        }
-    }
-
     Column {
         anchors.left: parent.left
-        anchors.leftMargin: root.theme.gap + root.theme.smallGap
         anchors.right: closeButton.left
         anchors.rightMargin: root.theme.gap
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 3
+        spacing: 2
 
-        PlainText {
+        Row {
             width: parent.width
-            text: root.eyebrow.toUpperCase()
-            color: root.accentColor
-            font.family: root.theme.dataFont
-            font.pixelSize: root.theme.microFontSize
-            font.bold: true
-            font.letterSpacing: root.theme.utilityTracking
-            elide: Text.ElideRight
-        }
+            spacing: root.theme.gap
 
-        PlainText {
-            width: parent.width
-            text: root.title
-            color: root.theme.text
-            font.family: root.theme.bodyFont
-            font.pixelSize: root.theme.sectionFontSize
-            font.bold: true
-            elide: Text.ElideRight
+            PlainText {
+                width: Math.max(0, parent.width - contextLabel.width - root.theme.gap)
+                text: root.title
+                color: root.theme.text
+                font.family: root.theme.bodyFont
+                font.pixelSize: root.theme.summaryFontSize
+                font.bold: true
+                elide: Text.ElideRight
+            }
+            PlainText {
+                id: contextLabel
+                visible: root.eyebrow !== ""
+                width: visible ? implicitWidth : 0
+                text: root.eyebrow.toUpperCase()
+                color: root.accentColor
+                font.family: root.theme.dataFont
+                font.pixelSize: root.theme.microFontSize
+                font.bold: true
+                font.letterSpacing: root.theme.utilityTracking
+            }
         }
 
         PlainText {
@@ -65,7 +51,7 @@ Item {
             text: root.detail
             color: root.theme.muted
             font.family: root.theme.dataFont
-            font.pixelSize: root.theme.captionFontSize
+            font.pixelSize: root.theme.microFontSize
             elide: Text.ElideRight
         }
     }
@@ -85,14 +71,7 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: root.theme.dividerWidth
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0; color: root.accentColor }
-            GradientStop {
-                position: 0.42
-                color: root.theme.withAlpha(root.accentColor, 0.12)
-            }
-            GradientStop { position: 1; color: root.theme.transparent }
-        }
+        color: root.accentColor
+        opacity: 0.78
     }
 }

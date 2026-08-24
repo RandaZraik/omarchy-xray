@@ -26,6 +26,27 @@ def yaml_mapping_block(document: str, key: str, indent: int) -> str:
     return "\n".join(lines[start:end])
 
 
+def qml_blocks(document: str, type_name: str) -> list[str]:
+    blocks: list[str] = []
+    cursor = 0
+    marker = re.compile(rf"\b{re.escape(type_name)}\s*\{{")
+    while match := marker.search(document, cursor):
+        start = document.find("{", match.start())
+        depth = 0
+        for index in range(start, len(document)):
+            if document[index] == "{":
+                depth += 1
+            elif document[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    blocks.append(document[match.start() : index + 1])
+                    cursor = index + 1
+                    break
+        else:
+            raise AssertionError(f"Unclosed {type_name} block")
+    return blocks
+
+
 class UiContractTests(unittest.TestCase):
     """Static checks for security and cross-component invariants.
 
@@ -50,6 +71,7 @@ class UiContractTests(unittest.TestCase):
         cards = "\n".join(
             path.read_text() for path in (ROOT / "ui/cards").glob("*.qml")
         )
+        cards += source("ui/views/ProcessConsole.qml")
         self.assertIn("function count(domain, snapshot)", domains)
         self.assertIn("function rows(domain, snapshot)", domains)
         self.assertEqual(cards.count("detailsCount: DetailDomains.count("), 7)
@@ -89,6 +111,88 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("readonly property bool dashboardInteractive", overlay)
         self.assertGreaterEqual(overlay.count("enabled: root.dashboardInteractive"), 2)
 
+    def test_outside_click_dismisses_overlay_without_inside_click_through(self) -> None:
+        overlay = source("ui/XRayOverlay.qml")
+        self.assertIn('objectName: "xrayBackdropDismissArea"', overlay)
+        self.assertIn("onClicked: root.dismissTopLayer()", overlay)
+        self.assertIn('objectName: "xrayDeskInputBarrier"', overlay)
+
+    def test_all_custom_tap_targets_advertise_clickability(self) -> None:
+        rendered = "\n".join(path.read_text() for path in sorted((ROOT / "ui").rglob("*.qml")))
+        handlers = qml_blocks(rendered, "TapHandler")
+        self.assertTrue(handlers)
+        for handler in handlers:
+            self.assertIn("cursorShape:", handler)
+            self.assertIn("Qt.PointingHandCursor", handler)
+
+    def test_clickable_hover_layers_own_the_visible_hand_cursor(self) -> None:
+        rendered = "\n".join(path.read_text() for path in sorted((ROOT / "ui").rglob("*.qml")))
+        handlers = qml_blocks(rendered, "HoverHandler")
+        self.assertTrue(handlers)
+        for handler in handlers:
+            self.assertIn("cursorShape:", handler)
+            self.assertIn("Qt.PointingHandCursor", handler)
+
+    def test_clickable_dismissal_surfaces_advertise_clickability(self) -> None:
+        overlay = source("ui/XRayOverlay.qml")
+        confirmation = source("ui/views/ConfirmationOverlay.qml")
+        self.assertRegex(
+            overlay,
+            r'objectName: "xrayBackdropDismissArea"[\s\S]*?'
+            r"cursorShape: Qt\.PointingHandCursor[\s\S]*?"
+            r"onClicked: root\.dismissTopLayer\(\)",
+        )
+        self.assertRegex(
+            overlay,
+            r"cursorShape: Qt\.PointingHandCursor\s+"
+            r"onClicked: controller\.dismissDrawerAfterPointer\(\)",
+        )
+        self.assertRegex(
+            confirmation,
+            r"MouseArea\s*\{\s*anchors\.fill: parent\s+"
+            r"cursorShape: Qt\.PointingHandCursor\s+"
+            r"onClicked: root\.cancelled\(\)",
+        )
+
+    def test_every_evidence_drawer_uses_the_full_workspace_height(self) -> None:
+        overlay = source("ui/XRayOverlay.qml")
+        detail = overlay[overlay.index("DetailDrawer {") : overlay.index("SettingsDrawer {")]
+        self.assertIn("anchors.top: parent.top", detail)
+        self.assertIn("anchors.bottom: parent.bottom", detail)
+        self.assertNotIn("Math.min(12, detailDrawer.rows.length)", detail)
+
+    def test_grouped_drawers_use_collapsible_sections_without_zebra_rows(self) -> None:
+        drawer = source("ui/drawers/DetailDrawer.qml")
+        section = source("ui/controls/DrawerSectionHeader.qml")
+        process = source("ui/views/ProcessConsole.qml")
+        self.assertIn("function toggleSection(id)", drawer)
+        self.assertIn("DelegateModel {", drawer)
+        self.assertIn('filterOnGroup: "visible"', drawer)
+        self.assertIn("collapsed: root.sectionCollapsed(parent.rowData.sectionId)", drawer)
+        self.assertIn("onSectionToggled: function(sectionId)", drawer)
+        self.assertIn("cursorShape: enabled ? Qt.PointingHandCursor", section)
+        self.assertNotRegex(drawer, r"index\s*%\s*2")
+        self.assertNotRegex(process, r"index\s*%\s*2")
+
+    def test_process_table_empty_space_opens_the_complete_tree(self) -> None:
+        process = source("ui/views/ProcessConsole.qml")
+        card = source("ui/controls/Card.qml")
+        self.assertIn("footer: Item", process)
+        self.assertIn("id: emptyAreaHover", process)
+        self.assertIn("externalHover: emptyAreaHovered", process)
+        self.assertIn("onHoveredChanged: root.emptyAreaHovered = hovered", process)
+        self.assertIn("onTapped: root.detailsRequested()", process)
+        self.assertIn("root.theme.cardHoverOverlayOpacity", card)
+
+    def test_catalog_items_are_indented_beneath_group_headers(self) -> None:
+        browser = source("ui/views/TargetBrowser.qml")
+        self.assertIn("anchors.leftMargin: root.theme.targetBrowserChildIndent", browser)
+        self.assertIn(
+            "targetBrowserChildIndent: pad * 2 + 1",
+            source("ui/XRayTheme.qml"),
+        )
+        self.assertIn("anchors.left: targetRow.left", browser)
+
     def test_detail_drawer_live_patch_imports_domain_helper(self) -> None:
         controller = source("ui/controllers/XRayController.qml")
         self.assertIn('import "../DetailDomains.js" as DetailDomains', controller)
@@ -110,6 +214,13 @@ class UiContractTests(unittest.TestCase):
             "gpuPercent",
         ):
             self.assertIn(field, comparison)
+
+    def test_identity_rail_keeps_live_history_beside_numeric_metrics(self) -> None:
+        identity = source("ui/views/IdentityBar.qml")
+        overlay = source("ui/XRayOverlay.qml")
+        self.assertIn("TelemetryTrace", identity)
+        self.assertIn("performanceSamples: controller.performanceSamples", overlay)
+        self.assertIn("performanceWindowSeconds: controller.performanceWindowSeconds", overlay)
 
     def test_settings_ui_is_generated_from_the_backend_contract(self) -> None:
         drawer = source("ui/drawers/SettingsDrawer.qml")

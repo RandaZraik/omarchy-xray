@@ -7,6 +7,10 @@ Item {
     property string title: ""
     property string subtitle: ""
     property string meta: ""
+    property string leadingText: ""
+    property bool leadingBordered: true
+    property color accentColor: theme.accent
+    property bool emphasized: false
     property bool selected: false
     property bool interactive: true
     property color idleColor: theme.transparent
@@ -17,7 +21,8 @@ Item {
     property int textSpacing: 1
     signal clicked()
 
-    height: 38
+    implicitHeight: theme.compactRowHeight
+    height: implicitHeight
 
     Rectangle {
         anchors.fill: parent
@@ -36,7 +41,32 @@ Item {
         anchors.topMargin: root.theme.smallGap
         anchors.bottomMargin: root.theme.smallGap
         radius: root.theme.pillRadius
-        color: root.theme.accent
+        color: root.accentColor
+    }
+
+    Rectangle {
+        id: leadingBadge
+        visible: root.leadingText !== ""
+        width: 24
+        height: 24
+        radius: root.theme.controlRadius
+        anchors.left: parent.left
+        anchors.leftMargin: root.horizontalPadding
+        anchors.verticalCenter: parent.verticalCenter
+        color: root.emphasized
+            ? root.theme.tintedSurface(root.accentColor)
+            : root.theme.transparent
+        border.color: root.emphasized ? root.accentColor : root.theme.cardBorder
+        border.width: root.leadingBordered ? root.theme.borderWidth : 0
+
+        PlainText {
+            anchors.centerIn: parent
+            text: root.leadingText
+            color: root.emphasized ? root.accentColor : root.theme.muted
+            font.family: root.theme.dataFont
+            font.pixelSize: root.theme.labelFontSize
+            renderType: Text.NativeRendering
+        }
     }
 
     Column {
@@ -44,7 +74,8 @@ Item {
         anchors.right: metaText.left
         anchors.verticalCenter: parent.verticalCenter
         anchors.leftMargin: root.horizontalPadding
-            + (root.selected ? root.theme.smallGap : 0)
+            + (leadingBadge.visible ? leadingBadge.width + root.theme.gap : 0)
+            + (root.selected && !leadingBadge.visible ? root.theme.smallGap : 0)
         anchors.rightMargin: root.horizontalPadding
         spacing: root.textSpacing
 
@@ -74,7 +105,7 @@ Item {
         anchors.rightMargin: root.horizontalPadding
         anchors.verticalCenter: parent.verticalCenter
         text: root.meta
-        color: root.theme.accent
+        color: root.accentColor
         font.family: root.theme.dataFont
         font.pixelSize: root.theme.captionFontSize
     }
@@ -90,6 +121,14 @@ Item {
         opacity: root.theme.subtleDividerOpacity
     }
 
-    HoverHandler { id: hover }
-    TapHandler { enabled: root.interactive; onTapped: root.clicked() }
+    HoverHandler {
+        id: hover
+        enabled: root.interactive
+        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+    TapHandler {
+        enabled: root.interactive
+        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onTapped: root.clicked()
+    }
 }

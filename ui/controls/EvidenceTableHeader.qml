@@ -79,9 +79,14 @@ Item {
                     elide: Text.ElideRight
                 }
 
-                HoverHandler { id: hover; enabled: root.sortable }
+                HoverHandler {
+                    id: hover
+                    enabled: root.sortable
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                }
                 TapHandler {
                     enabled: root.sortable
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onTapped: root.columnActivated(root.columnKey(cell.modelData))
                 }
             }

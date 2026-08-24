@@ -22,8 +22,16 @@ Item {
         opened ? close() : open(payloadJson || "{}");
     }
 
+    function browse() {
+        overlay.browse();
+    }
+
+    function details(domain) {
+        overlay.showDetails(String(domain || ""));
+    }
+
     XRayOverlay {
         id: overlay
-
+        appLibrary: root.shell ? root.shell.appLibrary : null
     }
 }

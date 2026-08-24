@@ -46,22 +46,8 @@ Card {
                     color: deviceCell.modelData.active
                         ? root.theme.tintedSurface(root.accentColor)
                         : (deviceCell.modelData.limited
-                            ? root.theme.dangerSurface
+                            ? root.theme.tintedSurface(root.theme.storageAccent)
                             : root.theme.transparent)
-                }
-
-                Rectangle {
-                    visible: deviceCell.modelData.active === true
-                        || deviceCell.modelData.limited === true
-                    width: 2
-                    anchors.left: parent.left
-                    anchors.leftMargin: 1
-                    anchors.top: parent.top
-                    anchors.topMargin: 5
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 5
-                    radius: 1
-                    color: deviceCell.modelData.limited ? root.theme.danger : root.accentColor
                 }
 
                 Rectangle {
@@ -92,14 +78,14 @@ Card {
                     anchors.verticalCenter: parent.verticalCenter
                     color: root.theme.transparent
                     border.color: deviceCell.modelData.limited
-                        ? root.theme.danger
+                        ? root.theme.storageAccent
                         : (deviceCell.modelData.active ? root.accentColor : root.theme.border)
                     border.width: root.theme.borderWidth
                     PlainText {
                         anchors.centerIn: parent
                         text: Format.icon(deviceCell.modelData.icon)
                         color: deviceCell.modelData.limited
-                            ? root.theme.danger
+                            ? root.theme.storageAccent
                             : (deviceCell.modelData.active ? root.accentColor : root.theme.muted)
                         font.family: root.theme.dataFont
                         font.pixelSize: root.theme.captionFontSize
@@ -118,7 +104,7 @@ Card {
                         text: deviceCell.modelData.title
                         color: root.theme.text
                         font.family: root.theme.bodyFont
-                        font.pixelSize: root.theme.captionFontSize
+                        font.pixelSize: root.theme.bodyFontSize
                         font.bold: deviceCell.modelData.active === true
                         elide: Text.ElideRight
                     }
@@ -127,7 +113,7 @@ Card {
                         text: deviceCell.modelData.subtitle
                         color: root.theme.muted
                         font.family: root.theme.dataFont
-                        font.pixelSize: root.theme.microFontSize
+                        font.pixelSize: root.theme.captionFontSize
                         elide: Text.ElideRight
                     }
                 }
@@ -139,11 +125,12 @@ Card {
                     anchors.rightMargin: 7
                     anchors.verticalCenter: parent.verticalCenter
                     text: deviceCell.modelData.meta
-                    color: deviceCell.modelData.limited
-                        ? root.theme.danger
-                        : (deviceCell.modelData.active ? root.accentColor : root.theme.muted)
+                    color: deviceCell.modelData.active
+                        ? root.accentColor
+                        : (deviceCell.modelData.limited
+                            ? root.theme.storageAccent : root.theme.muted)
                     font.family: root.theme.dataFont
-                    font.pixelSize: root.theme.microFontSize
+                    font.pixelSize: root.theme.captionFontSize
                     font.bold: deviceCell.modelData.active === true
                         || deviceCell.modelData.limited === true
                 }

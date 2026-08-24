@@ -10,20 +10,23 @@ BorderSurface {
     property string eyebrow: ""
     property string countText: ""
     property int detailsCount: 0
-    property string detailsLabel: "VIEW ALL"
+    property string detailsLabel: "OPEN"
     property color accentColor: theme.accent
     property bool interactive: false
     property bool bodyInteractive: true
+    property bool externalHover: false
+    readonly property bool pointerHovered: externalHover || (bodyInteractive
+        ? bodyHover.hovered : headerHover.hovered
+    )
     property alias body: bodyItem.data
     signal clicked()
 
-    color: hover.hovered && interactive
-        ? theme.blend(theme.surfaceHigh, accentColor, 0.045)
-        : theme.blend(theme.surfaceMid, accentColor, 0.018)
+    color: pointerHovered && interactive
+        ? theme.surfaceHigh : theme.consoleSurface
     borderSpec: Commons.Border.flat(
-        hover.hovered && interactive
+        pointerHovered && interactive
             ? theme.hoveredBorder(accentColor)
-            : theme.cardBorder,
+            : theme.consoleBorder,
         theme.borderWidth
     )
     radius: theme.cardRadius
@@ -41,7 +44,8 @@ BorderSurface {
 
     TextMetrics {
         id: headingMetrics
-        text: root.title + (root.eyebrow ? "  ·  " + root.eyebrow.toUpperCase() : "")
+        text: root.title.toUpperCase()
+            + (root.eyebrow ? "  ·  " + root.eyebrow.toUpperCase() : "")
         font.family: root.theme.bodyFont
         font.pixelSize: root.theme.labelFontSize
         font.bold: true
@@ -50,7 +54,10 @@ BorderSurface {
 
     Column {
         anchors.fill: parent
-        anchors.margins: root.theme.pad
+        anchors.leftMargin: root.theme.pad
+        anchors.rightMargin: root.theme.pad
+        anchors.topMargin: 3
+        anchors.bottomMargin: root.theme.smallGap
         spacing: 0
 
         Row {
@@ -63,7 +70,8 @@ BorderSurface {
                 id: heading
                 width: Math.max(0, parent.width - count.width - details.width - root.theme.smallGap * 2)
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.title + (root.eyebrow ? "  ·  " + root.eyebrow.toUpperCase() : "")
+                text: root.title.toUpperCase()
+                    + (root.eyebrow ? "  ·  " + root.eyebrow.toUpperCase() : "")
                 color: root.theme.headingColor(root.accentColor)
                 font.family: root.theme.bodyFont
                 font.pixelSize: root.theme.labelFontSize
@@ -102,16 +110,21 @@ BorderSurface {
 
             TapHandler {
                 enabled: root.interactive && !root.bodyInteractive
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onTapped: root.clicked()
+            }
+            HoverHandler {
+                id: headerHover
+                enabled: root.interactive && !root.bodyInteractive
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             }
         }
 
-        AccentSignal {
+        Rectangle {
             width: parent.width
-            theme: root.theme
-            accentColor: root.accentColor
-            fadePosition: 0.24
-            opacity: root.theme.dividerOpacity
+            height: root.theme.dividerWidth
+            color: root.accentColor
+            opacity: 0.76
         }
 
         Item {
@@ -126,12 +139,19 @@ BorderSurface {
         anchors.fill: parent
         anchors.margins: root.theme.borderWidth
         radius: Math.max(0, root.radius - root.theme.borderWidth)
-        color: root.theme.transparent
-        border.color: root.theme.surfaceHighlight
-        border.width: root.theme.dividerWidth
-        opacity: 0.45
+        color: root.theme.text
+        opacity: root.pointerHovered && root.interactive
+            ? root.theme.cardHoverOverlayOpacity : 0
     }
 
-    HoverHandler { id: hover; enabled: root.interactive }
-    TapHandler { enabled: root.interactive && root.bodyInteractive; onTapped: root.clicked() }
+    HoverHandler {
+        id: bodyHover
+        enabled: root.interactive && root.bodyInteractive
+        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+    TapHandler {
+        enabled: root.interactive && root.bodyInteractive
+        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onTapped: root.clicked()
+    }
 }

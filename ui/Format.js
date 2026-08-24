@@ -75,8 +75,10 @@ function icon(name) {
         "stop": "󰓛", "restart": "󰑐", "coverage": "󰦝", "settings": "󰒓",
         "capsule": "󰆧", "close": "󰅖", "refresh": "󰑐", "search": "󰍉",
         "pick": "󰆿", "copy": "󰆏", "baseline": "󰋊", "microphone": "󰍬",
-        "camera": "󰄀", "screen": "󰍹", "audio": "󰓃", "audio-capture": "󰕾", "gpu": "󰢮", "sleep": "󰒲",
+        "camera": "󰄀", "screen": "󰍹", "audio": "󰓃", "audio-capture": "󰕾", "video": "󰕧", "gpu": "󰢮", "sleep": "󰒲",
         "service": "󰒋", "container": "󰡨", "shell": "󰆍", "session": "󰍹",
+        "shield": "󰒃", "namespace": "󰅩", "memory": "󰍛", "package": "󰏗", "log": "󰌱",
+        "lock": "󰌾", "socket": "󰆨", "network": "󰛳", "pipe": "󰟥", "event": "󰐕", "warning": "󰀪",
         "supervisor": "󰒋", "xray": "󰮄"
     }
     return icons[name] || "•"

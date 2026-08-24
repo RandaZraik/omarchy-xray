@@ -58,6 +58,7 @@ ShellRoot {
                 return
             }
             console.log("XRAY_PICKER ok")
+            running = false
             controller.close()
             Qt.quit()
         }

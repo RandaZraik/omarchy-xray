@@ -229,7 +229,7 @@ class LiveTruthTests(unittest.TestCase):
                 len(devices.get(name, ())) for name in ("pipewire", "gpu", "inhibitors")
             )
             + unavailable_device_sources,
-            "runtime": 6
+            "runtime": 5
             + bool(security.get("apparmor"))
             + (security.get("oomScore") is not None)
             + bool(context.get("package", {}).get("name"))
@@ -254,11 +254,8 @@ class LiveTruthTests(unittest.TestCase):
                 else 0
             ),
             "cause": len(context["cause"]["nodes"]),
-            "explanations": len(snapshot["timeline"])
-            + sum(
-                1 + len(row.get("evidence", ())) + bool(row.get("nextStep"))
-                for row in snapshot["explanations"]
-            ),
+            "explanations": len(snapshot["explanations"])
+            + len(snapshot["timeline"]),
             "coverage": len(snapshot["coverage"]["available"])
             + len(snapshot["coverage"]["limited"]),
             "alternatives": len(snapshot["target"]["alternatives"]),
@@ -295,26 +292,17 @@ class LiveTruthTests(unittest.TestCase):
             self.assertEqual(row["subtitle"], node.get("proof") or node.get("detail"))
         rendered_explanations = rows["explanations"]
         for explanation in snapshot["explanations"]:
-            self.assertTrue(
-                any(
-                    row["title"] == explanation["title"]
-                    for row in rendered_explanations
-                )
+            rendered_finding = next(
+                row
+                for row in rendered_explanations
+                if row["title"] == explanation["title"]
             )
-            for proof in explanation.get("evidence", ()):
-                self.assertTrue(
-                    any(
-                        row["title"] == "Source" and row["subtitle"] == proof
-                        for row in rendered_explanations
-                    )
-                )
+            self.assertEqual(
+                rendered_finding["evidence"], explanation.get("evidence", [])
+            )
             if explanation.get("nextStep"):
-                self.assertTrue(
-                    any(
-                        row["title"] == "Next check"
-                        and row["subtitle"] == explanation["nextStep"]
-                        for row in rendered_explanations
-                    )
+                self.assertEqual(
+                    rendered_finding["nextStep"], explanation["nextStep"]
                 )
         coverage_titles = {row["title"] for row in rows["coverage"]}
         self.assertEqual(

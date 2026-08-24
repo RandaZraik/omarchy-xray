@@ -15,7 +15,7 @@ Button {
     background: variant === "danger"
         ? theme.dangerSurface
         : variant === "primary"
-            ? theme.blend(theme.surfaceHigh, accentColor, 0.12)
+            ? theme.focusedSurface(accentColor)
             : theme.surfaceLow
     accent: variant === "danger" ? theme.danger : accentColor
     fontFamily: theme.bodyFont

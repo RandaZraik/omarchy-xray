@@ -70,9 +70,9 @@ QtObject {
                 "alternatives": [{"pid": 10, "label": "Owner"}, {"pid": 11, "label": "Worker"}]
             },
             "processes": [{"pid": 10, "name": "owner", "command": ["owner"], "cpuPercent": 2, "memoryBytes": 1024}],
-            "connections": [{"protocol": "TCP4", "state": "Established", "localAddress": "127.0.0.1", "localPort": 5173}],
-            "files": [{"pid": 10, "fd": 4, "target": "/tmp/example", "kind": "file", "mode": "rw"}],
-            "locks": [{"pid": 10, "inode": 9, "type": "POSIX", "mode": "WRITE"}],
+            "connections": [{"protocol": "TCP4", "state": "Established", "localAddress": "127.0.0.1", "localPort": 5173, "remoteAddress": "10.0.0.2", "remotePort": 443, "pids": [10], "inode": 77, "networkNamespace": "net:[1]", "listening": false}],
+            "files": [{"pid": 10, "fd": 4, "target": "/tmp/example", "kind": "file", "mode": "read/write", "position": 12, "flags": "0100002", "mountId": 29}],
+            "locks": [{"id": "3", "pid": 10, "owner": "PID 10", "inode": "08:01:9", "type": "POSIX", "scope": "ADVISORY", "mode": "Write", "start": "0", "end": "EOF"}],
             "devices": activeDevices,
             "context": {
                 "executable": "/usr/bin/owner",
@@ -112,6 +112,44 @@ QtObject {
              "readBytesPerSecond": null, "writeBytesPerSecond": null,
              "command": []}
         ]
+        var largeFileRows = []
+        for (var fileIndex = 0; fileIndex < 2500; fileIndex++) {
+            largeFileRows.push({
+                "rowType": "file",
+                "section": "files",
+                "title": "/tmp/resource-" + (fileIndex % 1250),
+                "target": "/tmp/resource-" + (fileIndex % 1250),
+                "kind": "file",
+                "mode": "read/write",
+                "deleted": false,
+                "pid": 100 + (fileIndex % 8),
+                "fd": fileIndex,
+                "position": fileIndex,
+                "flags": "0100002",
+                "mountId": 29,
+                "searchText": "resource " + fileIndex
+            })
+        }
+        var prepareStartedAt = Date.now()
+        var preparedLargeFiles = DetailDomains.preparePresentation(
+            DetailDomains.Files, largeFileRows
+        )
+        var prepareElapsedMs = Date.now() - prepareStartedAt
+        var expandedLargeFiles = DetailDomains.presentationRowsFromPrepared(
+            DetailDomains.Files, preparedLargeFiles, {}, false
+        )
+        var collapsedLargeFiles = DetailDomains.presentationRowsFromPrepared(
+            DetailDomains.Files, preparedLargeFiles,
+            {"files:files": true}, false
+        )
+        var toggleStartedAt = Date.now()
+        for (var toggleIndex = 0; toggleIndex < 100; toggleIndex++) {
+            DetailDomains.presentationRowsFromPrepared(
+                DetailDomains.Files, preparedLargeFiles,
+                toggleIndex % 2 ? {} : {"files:files": true}, false
+            )
+        }
+        var toggleElapsedMs = Date.now() - toggleStartedAt
         console.log("XRAY_QML " + JSON.stringify({
             "empty": empty,
             "active": active,
@@ -148,10 +186,43 @@ QtObject {
             "ipv4Endpoint": Format.addressPort("127.0.0.1", 443),
             "ipv6Endpoint": Format.addressPort("2001:db8::1", 443),
             "defaultMemory": Format.bytes(651788288),
+            "deviceIcons": [
+                Format.icon("audio"),
+                Format.icon("gpu"),
+                Format.icon("microphone"),
+                Format.icon("camera")
+            ],
             "detailCounts": detailCounts,
             "detailRowCounts": detailRowCounts,
+            "connectionRows": DetailDomains.rows(DetailDomains.Connections, snapshot),
+            "fileRows": DetailDomains.rows(DetailDomains.Files, snapshot),
+            "deviceDetailRows": DetailDomains.rows(DetailDomains.Devices, snapshot),
             "runtimeRows": DetailDomains.rows(DetailDomains.Runtime, snapshot),
             "explanationRows": DetailDomains.rows(DetailDomains.Explanations, snapshot),
+            "fileSummary": DetailDomains.summary(
+                DetailDomains.Files, snapshot,
+                DetailDomains.rows(DetailDomains.Files, snapshot)
+            ),
+            "connectionPresentation": DetailDomains.presentationRows(
+                DetailDomains.Connections,
+                DetailDomains.rows(DetailDomains.Connections, snapshot), {}, false
+            ),
+            "unknownSectionPresentation": DetailDomains.presentationRows(
+                DetailDomains.Connections,
+                [{"section": "future", "title": "Future evidence"}], {}, false
+            ),
+            "largeFilePresentation": {
+                "sourceCount": largeFileRows.length,
+                "resourceCount": preparedLargeFiles.rows.length,
+                "flatCount": preparedLargeFiles.flatRows.length,
+                "sectionCountLabel": preparedLargeFiles.sections[0].countLabel,
+                "expandedCount": expandedLargeFiles.length,
+                "collapsedCount": collapsedLargeFiles.length,
+                "rowIdentityPreserved": expandedLargeFiles[1]
+                    === preparedLargeFiles.sections[0].rows[0],
+                "prepareElapsedMs": prepareElapsedMs,
+                "toggleElapsedMs": toggleElapsedMs
+            },
             "processUserFilter": ProcessEvidence.filter(
                 processEvidenceRows, "demo-user"
             ).map(function(row) { return row.pid }),

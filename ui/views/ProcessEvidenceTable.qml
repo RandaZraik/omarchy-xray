@@ -104,7 +104,11 @@ Item {
         id: selectedStrip
         objectName: "xraySelectedProcessCommand"
         width: root.contentWidth
-        height: root.selectedCommand ? root.theme.processEvidenceCommandHeight : 0
+        height: root.selectedCommand ? Math.max(
+            root.theme.processEvidenceCommandHeight,
+            selectedCommandText.y + selectedCommandText.implicitHeight
+                + root.theme.smallGap
+        ) : 0
         visible: height > 0
 
         Rectangle {
@@ -112,12 +116,7 @@ Item {
             radius: root.theme.cardRadius
             border.color: root.theme.accentBorder
             border.width: root.theme.borderWidth
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0; color: root.theme.accentSurface }
-                GradientStop { position: 0.28; color: root.theme.inspectorRaisedSurface }
-                GradientStop { position: 1; color: root.theme.surfaceMid }
-            }
+            color: root.theme.surfaceLow
         }
 
         Rectangle {
@@ -193,6 +192,8 @@ Item {
         }
 
         PlainText {
+            id: selectedCommandText
+            objectName: "xraySelectedProcessCommandText"
             anchors.left: selectedCommandLabel.right
             anchors.right: parent.right
             anchors.top: selectedIdentity.bottom
@@ -215,7 +216,7 @@ Item {
         width: root.contentWidth
         height: Math.max(0, parent.height - y)
         radius: root.theme.cardRadius
-        color: root.theme.inspectorTableSurface
+        color: root.theme.consoleSurface
         border.color: root.theme.cardBorder
         border.width: root.theme.borderWidth
         clip: true
@@ -234,7 +235,7 @@ Item {
             signalVisible: true
             headerHeight: root.theme.processEvidenceHeaderHeight
             fontSize: root.theme.processEvidenceHeaderFontSize
-            backgroundColor: root.theme.inspectorHeaderSurface
+            backgroundColor: root.theme.surfaceLow
             activeColor: root.theme.inspectorAccentText
             onColumnActivated: function(key) { root.chooseSort(key); }
         }
@@ -445,9 +446,14 @@ Item {
                     }
                 }
 
-                HoverHandler { id: processHover }
+                HoverHandler {
+                    id: processHover
+                    enabled: root.selectionEnabled
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                }
                 TapHandler {
                     enabled: root.selectionEnabled
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onTapped: root.processSelected(Number(processRow.modelData.pid))
                 }
             }

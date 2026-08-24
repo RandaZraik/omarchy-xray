@@ -223,13 +223,19 @@ ShellRoot {
                         || !((root.controller.snapshot.target || {}).rootPid)) return
                 root.require(root.dashboard && root.header && root.browser && root.footer,
                     "the shipped dashboard composition is incomplete")
-                root.require(root.findProperty(
-                    root.browser, "tooltipText", "Hide target browser"
-                ), "the pinned target browser cannot be dismissed")
+                var targetSearch = root.named("xrayTargetSearchField")
+                root.require(targetSearch && targetSearch.visible,
+                    "the pinned target search is not visible")
                 root.require(root.settingsDrawer && root.capsuleDrawer && root.detailDrawer,
                     "the shipped drawers are incomplete")
                 root.require(root.panel && root.panel.visible,
                     "the shipped inspection panel is not visible")
+                var backdrop = root.named("xrayBackdropDismissArea")
+                root.require(backdrop,
+                    "the production outside-click dismiss target is missing")
+                // The oracle runs on the user's live desktop. Ignore unrelated
+                // physical clicks while it drives controls directly.
+                backdrop.enabled = false
                 root.require(Number(root.controller.snapshot.target.ownerPid) === root.expectedPid,
                     "the public UI inspected the wrong process")
                 root.require(Number(root.controller.snapshot.target.inspectionId) > 0,
@@ -238,8 +244,8 @@ ShellRoot {
                     "the dashboard did not receive a usable panel layout")
 
                 var cardNames = [
-                    "xrayIdentityCard", "xrayCauseCard", "xrayProcessCard",
-                    "xrayPerformanceCard", "xrayConnectionsCard", "xrayFilesCard",
+                    "xrayCauseCard", "xrayProcessCard",
+                    "xrayConnectionsCard", "xrayFilesCard",
                     "xrayDevicesCard", "xrayRuntimeCard", "xrayExplanationsCard"
                 ]
                 cardNames.forEach(function(name) {
@@ -250,6 +256,16 @@ ShellRoot {
                     root.require(root.cardInsideDashboard(card),
                         "production card escapes the dashboard: " + name)
                 })
+
+                var identityRail = root.named("xrayIdentityRail")
+                root.require(identityRail && identityRail.visible
+                        && identityRail.width > 0 && identityRail.height > 0,
+                    "the production identity rail is missing")
+                var telemetryTrace = root.named("xrayTelemetryTrace")
+                root.require(telemetryTrace && telemetryTrace.visible
+                        && telemetryTrace.width >= telemetryTrace.theme.telemetryTraceMinimumWidth
+                        && telemetryTrace.height > 0,
+                    "the production 60-second telemetry trace is missing")
 
                 var processCard = root.named("xrayProcessCard")
                 var processText = root.textDump(processCard)
@@ -286,7 +302,6 @@ ShellRoot {
             }
 
             if (root.stage === 2) {
-                if (!root.browser.visible) return
                 if (root.controller.catalogRequested
                         || !(root.controller.catalog.processes || []).length) return
                 root.require(root.dashboard.y === root.dashboardY
@@ -434,13 +449,26 @@ ShellRoot {
                             && processTable.theme.processEvidenceSecondaryFontSize
                                 >= processTable.theme.labelFontSize
                             && processTable.theme.processEvidenceRowHeight
-                                >= processTable.theme.processEvidenceValueFontSize * 4.5,
-                        "process evidence table regressed below its readable data density")
+                                >= processTable.theme.processEvidenceValueFontSize * 2.5
+                            && processTable.theme.processEvidenceRowHeight
+                                <= processTable.theme.processEvidenceValueFontSize * 4,
+                        "process evidence table escaped its readable compact density")
                     root.require(processTable.selectedCommand.indexOf("truth_fixture.py") >= 0,
                         "selected process command fell back to the executable path")
+                    var commandStrip = root.named("xraySelectedProcessCommand")
+                    var commandTextItem = root.named("xraySelectedProcessCommandText")
+                    var commandPoint = commandTextItem.mapToItem(commandStrip, 0, 0)
+                    root.require(commandPoint.y + commandTextItem.height
+                            <= commandStrip.height + 1,
+                        "selected process command is clipped by the table header")
                     var processText = root.textDump(processTable)
-                    ;["PROCESS / COMMAND", "PID", "USER", "THREADS",
-                      "CPU", "MEMORY", "READ / WRITE"]
+                    var processLabels = [
+                        "PROCESS / COMMAND", "PID", "USER",
+                        processTable.expanded ? "THREADS" : "THR",
+                        "CPU", "MEMORY"
+                    ]
+                    if (processTable.expanded) processLabels.push("READ / WRITE")
+                    processLabels
                         .forEach(function(label) {
                             root.require(processText.indexOf(label) >= 0,
                                 "process evidence table is missing " + label)
@@ -469,14 +497,47 @@ ShellRoot {
                         return
                     }
                 }
-                if (spec.domain === "connections")
-                    root.require(root.detailDrawer.allRows.some(function(row) {
+                if (spec.domain === "connections") {
+                    var hasListener = root.detailDrawer.allRows.some(function(row) {
                         return String(row.title).indexOf(String(root.expectedPort)) >= 0
-                    }), "connection drilldown omits the independently known listener")
-                if (spec.domain === "files")
+                    })
+                    if (!hasListener)
+                        console.log("XRAY_CONNECTION_DRAWER_STATE " + JSON.stringify({
+                            "expectedPort": root.expectedPort,
+                            "detailRows": root.detailDrawer.allRows,
+                            "detailConnections": root.controller.detailSnapshot.connections || [],
+                            "liveConnections": root.controller.snapshot.connections || [],
+                            "target": root.controller.snapshot.target || {}
+                        }))
+                    root.require(hasListener,
+                        "connection drilldown omits the independently known listener")
+                }
+                if (spec.domain === "files") {
                     root.require(root.detailDrawer.allRows.some(function(row) {
                         return String(row.title).replace(/ \(deleted\)$/, "") === root.expectedPath
                     }), "file drilldown omits the independently known file")
+                    var preparedPresentation = root.detailDrawer.preparedPresentation
+                    var preparedSections = preparedPresentation.sections || []
+                    if (preparedSections.length) {
+                        var sectionId = String(preparedSections[0].id)
+                        var visibleRowsBeforeToggle = root.detailDrawer.visibleRowCount
+                        root.detailDrawer.toggleSection(sectionId)
+                        root.require(
+                            root.detailDrawer.preparedPresentation === preparedPresentation,
+                            "file section toggle rebuilt its prepared evidence"
+                        )
+                        root.require(
+                            root.detailDrawer.visibleRowCount
+                                !== visibleRowsBeforeToggle,
+                            "file section toggle did not change visible rows"
+                        )
+                        root.detailDrawer.toggleSection(sectionId)
+                        root.require(
+                            root.detailDrawer.preparedPresentation === preparedPresentation,
+                            "file section restore rebuilt its prepared evidence"
+                        )
+                    }
+                }
                 root.require(root.descendants(root.detailDrawer).some(function(item) {
                     return item && item.contentHeight !== undefined
                         && item.height > 0 && item.clip === true

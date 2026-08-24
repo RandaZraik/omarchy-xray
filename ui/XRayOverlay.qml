@@ -15,23 +15,40 @@ Item {
     objectName: "xrayOverlay"
 
     property alias opened: controller.opened
+    property var appLibrary: null
     property var inspectionScreen: null
-    property bool browserOpen: false
     property string currentQuery: ""
-    readonly property bool browserPinned: desk.width >= theme.targetBrowserPinnedWidth
+    property bool browserOpen: true
     readonly property bool dashboardInteractive: controller.drawer === ""
         && !controller.pendingAction
 
     function open(payloadJson) {
         inspectionScreen = focusedScreen();
+        browserOpen = true;
         controller.open(payloadJson);
     }
     function close() { controller.close(); }
 
+    function browse() {
+        browserOpen = true;
+        Qt.callLater(function() { targetBrowser.focusSearch(true); });
+    }
+
+    function toggleBrowser() {
+        if (browserOpen) {
+            browserOpen = false;
+            return;
+        }
+        browse();
+    }
+
+    function showDetails(domain) {
+        if (domain) controller.showDetails(domain);
+    }
+
     function dismissTopLayer() {
         if (controller.pendingAction) controller.cancelActionAfterPointer();
         else if (controller.drawer) controller.closeDrawer();
-        else if (browserOpen && !browserPinned) browserOpen = false;
         else controller.close();
     }
 
@@ -48,9 +65,6 @@ Item {
     XRayController {
         id: controller
         objectName: "xrayController"
-        onOpenedChanged: if (opened) {
-            Qt.callLater(function() { root.browserOpen = root.browserPinned; });
-        }
         onClosed: root.inspectionScreen = null
         onQuerySynchronized: function(query) {
             root.currentQuery = query;
@@ -61,9 +75,6 @@ Item {
 
     XRayTheme { id: theme }
     XRayContract { id: contract }
-
-    onBrowserPinnedChanged: if (controller.opened && browserPinned)
-        browserOpen = true
 
     Shortcut {
         sequence: "Escape"
@@ -76,10 +87,7 @@ Item {
         sequence: "Ctrl+K"
         context: Qt.ApplicationShortcut
         enabled: controller.opened && root.dashboardInteractive
-        onActivated: {
-            root.browserOpen = true;
-            Qt.callLater(function() { targetBrowser.focusSearch(true); });
-        }
+        onActivated: root.browse()
     }
 
     Shortcut {
@@ -103,7 +111,12 @@ Item {
         exclusionMode: ExclusionMode.Ignore
 
         Rectangle { anchors.fill: parent; color: theme.scrim }
-        MouseArea { anchors.fill: parent; onClicked: controller.close() }
+        MouseArea {
+            objectName: "xrayBackdropDismissArea"
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.dismissTopLayer()
+        }
 
         Rectangle {
             width: desk.width + theme.gap * 2
@@ -125,26 +138,12 @@ Item {
             radius: theme.panelRadius
             borderSpec: Commons.Border.flat(theme.accentBorder, theme.borderWidth)
             padding: theme.panelPadding
+            color: theme.panel
 
-            gradient: Gradient {
-                GradientStop { position: 0; color: theme.surfaceMid }
-                GradientStop { position: 0.16; color: theme.panel }
-                GradientStop { position: 1; color: theme.canvas }
-            }
-
-            MouseArea { anchors.fill: parent; onClicked: {} }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: theme.borderWidth
-                height: 110
-                radius: theme.panelRadius
-                gradient: Gradient {
-                    GradientStop { position: 0; color: theme.accentGlowSoft }
-                    GradientStop { position: 1; color: theme.transparent }
-                }
+            MouseArea {
+                objectName: "xrayDeskInputBarrier"
+                anchors.fill: parent
+                onClicked: function(mouse) { mouse.accepted = true; }
             }
 
             FocusScope {
@@ -164,7 +163,7 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: theme.gap
+                    spacing: theme.consoleGap
 
                     AppHeader {
                         id: appHeader
@@ -172,14 +171,10 @@ Item {
                         theme: theme
                         capabilities: controller.capabilities
                         snapshot: controller.snapshot
+                        browserOpen: root.browserOpen
                         offline: controller.offline
                         interactionEnabled: !controller.interactionBlocked
-                        browserVisible: root.browserOpen
-                        onBrowserRequested: {
-                            root.browserOpen = !root.browserOpen;
-                            if (root.browserOpen)
-                                Qt.callLater(function() { targetBrowser.focusSearch(false); });
-                        }
+                        onBrowserRequested: root.toggleBrowser()
                         onPickRequested: controller.pickWindow()
                         onPauseRequested: controller.toggleSampling()
                         onCapsuleRequested: controller.toggleDrawer(controller.capsuleDrawer)
@@ -195,22 +190,12 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
 
-                        Rectangle {
-                            visible: root.browserOpen && !root.browserPinned
-                            z: 20
-                            anchors.fill: parent
-                            color: theme.drawerScrim
-                            TapHandler { onTapped: root.browserOpen = false }
-                        }
-
                         TargetBrowser {
                             id: targetBrowser
-                            z: root.browserPinned ? 0 : 21
+                            z: 1
                             visible: root.browserOpen
                             enabled: root.dashboardInteractive
-                            width: root.browserPinned
-                                ? Math.min(theme.targetBrowserWidth, workspace.width * 0.28)
-                                : Math.min(theme.targetBrowserOverlayWidth, workspace.width * 0.86)
+                            width: theme.targetBrowserWidth
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
                             anchors.left: parent.left
@@ -233,15 +218,17 @@ Item {
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
                             anchors.left: parent.left
-                            anchors.leftMargin: root.browserOpen && root.browserPinned
-                                ? targetBrowser.width + theme.smallGap : 0
-                            spacing: theme.gap
+                            anchors.leftMargin: root.browserOpen
+                                ? theme.targetBrowserWidth + theme.consoleGap : 0
+                            spacing: theme.consoleGap
 
                             IdentityBar {
                                 Layout.fillWidth: true
                                 theme: theme
+                                appLibrary: root.appLibrary
                                 snapshot: controller.snapshot
-                                previousMetrics: controller.previousMetrics
+                                performanceSamples: controller.performanceSamples
+                                performanceWindowSeconds: controller.performanceWindowSeconds
                                 onAlternativesRequested: controller.showDetails(DetailDomains.Alternatives)
                                 onCoverageRequested: if (controller.snapshot.coverage) controller.showDetails(DetailDomains.Coverage)
                             }
@@ -252,8 +239,6 @@ Item {
                                 Layout.fillHeight: true
                                 theme: theme
                                 snapshot: controller.snapshot
-                                performanceSamples: controller.performanceSamples
-                                performanceWindowSeconds: controller.performanceWindowSeconds
                                 busy: controller.busy
                                 onProcessSelected: function(pid) { controller.focusProcess(pid); }
                                 onDetailsRequested: function(domain) { controller.showDetails(domain); }
@@ -278,7 +263,11 @@ Item {
                     z: 40
                     anchors.fill: parent
                     color: theme.drawerScrim
-                    MouseArea { anchors.fill: parent; onClicked: controller.dismissDrawerAfterPointer() }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: controller.dismissDrawerAfterPointer()
+                    }
                 }
 
                 DetailDrawer {
@@ -287,8 +276,8 @@ Item {
                     visible: controller.drawer === controller.detailsDrawer
                     z: 41
                     width: controller.detailDomain === DetailDomains.Processes
-                        ? Math.min(1160, parent.width * 0.86)
-                        : Math.min(680, parent.width * 0.5)
+                        ? Math.min(720, parent.width * 0.52)
+                        : Math.min(580, parent.width * 0.42)
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right

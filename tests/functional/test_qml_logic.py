@@ -52,6 +52,14 @@ class QmlLogicTests(unittest.TestCase):
         self.assertEqual(len(self.data["active"]["activeRows"]), 4)
         self.assertEqual(self.data["mixed"]["rows"][1]["meta"], "2 LIVE")
 
+    def test_device_drawer_rows_keep_type_icons_and_prioritize_activity(self) -> None:
+        rows = self.data["deviceDetailRows"]
+        self.assertTrue(rows)
+        self.assertTrue(all(row.get("icon") for row in rows))
+        active = [row["active"] for row in rows]
+        self.assertEqual(active, sorted(active, reverse=True))
+        self.assertEqual(rows[0]["icon"], "microphone")
+
     def test_device_overflow_and_limited_sources_are_explicit(self) -> None:
         self.assertEqual(self.data["overflow"]["rows"][0]["meta"], "3 LIVE")
         self.assertEqual(
@@ -118,6 +126,25 @@ class QmlLogicTests(unittest.TestCase):
         self.assertEqual(self.data["ipv6Endpoint"], "[2001:db8::1]:443")
         self.assertEqual(self.data["defaultMemory"], "621.6 MiB")
 
+    def test_compact_device_badges_remain_visually_distinct(self) -> None:
+        self.assertNotIn("•", self.data["deviceIcons"])
+        self.assertEqual(len(set(self.data["deviceIcons"])), 4)
+
+    def test_detail_rows_keep_low_level_connection_and_descriptor_evidence(self) -> None:
+        connection = self.data["connectionRows"][0]
+        self.assertEqual(connection["pids"], [10])
+        self.assertEqual(connection["inode"], 77)
+        self.assertEqual(connection["networkNamespace"], "net:[1]")
+        self.assertEqual(connection["remote"], "10.0.0.2:443")
+
+        descriptor, lock = self.data["fileRows"]
+        self.assertEqual(descriptor["position"], 12)
+        self.assertEqual(descriptor["flags"], "0100002")
+        self.assertEqual(descriptor["mountId"], 29)
+        self.assertEqual(lock["start"], "0")
+        self.assertEqual(lock["end"], "EOF")
+        self.assertEqual(lock["scope"], "ADVISORY")
+
     def test_every_detail_domain_exposes_its_complete_rows(self) -> None:
         self.assertEqual(self.data["detailCounts"], self.data["detailRowCounts"])
         self.assertEqual(
@@ -127,9 +154,9 @@ class QmlLogicTests(unittest.TestCase):
                 "connections": 1,
                 "files": 2,
                 "devices": 5,
-                "runtime": 20,
+                "runtime": 19,
                 "cause": 1,
-                "explanations": 4,
+                "explanations": 2,
                 "coverage": 2,
                 "alternatives": 2,
             },
@@ -137,23 +164,76 @@ class QmlLogicTests(unittest.TestCase):
         runtime_titles = {row["title"] for row in self.data["runtimeRows"]}
         self.assertIn("demo.service", runtime_titles)
         self.assertIn("demo", runtime_titles)
-        self.assertIn("Identity", runtime_titles)
+        self.assertIn("Process identity", runtime_titles)
         self.assertIn("AppArmor / LSM", runtime_titles)
         self.assertIn("Out-of-memory priority", runtime_titles)
         self.assertIn("Package", runtime_titles)
         self.assertIn("Git project", runtime_titles)
         self.assertIn("Unit state", runtime_titles)
-        self.assertIn("Namespace · mnt", runtime_titles)
-        self.assertIn("Limit · open files", runtime_titles)
+        self.assertIn("Mount namespace", runtime_titles)
+        self.assertIn("open files", runtime_titles)
         self.assertIn("libc.so", runtime_titles)
         self.assertIn("ready", runtime_titles)
+        runtime_sections = {row["section"] for row in self.data["runtimeRows"]}
+        self.assertEqual(
+            runtime_sections,
+            {
+                "workload",
+                "isolation",
+                "namespaces",
+                "resources",
+                "software",
+                "container",
+                "journal",
+            },
+        )
+
+    def test_grouped_presentation_preserves_data_and_unfiltered_totals(self) -> None:
+        presentation = self.data["connectionPresentation"]
+        self.assertEqual(presentation[0]["rowType"], "section")
+        self.assertEqual(presentation[0]["sectionId"], "active")
+        self.assertEqual(presentation[0]["count"], 1)
+        self.assertEqual(presentation[1]["remote"], "10.0.0.2:443")
+
+        fallback = self.data["unknownSectionPresentation"]
+        self.assertEqual(fallback[0]["sectionId"], "active")
+        self.assertEqual(fallback[1]["title"], "Future evidence")
+
+        self.assertEqual(
+            self.data["fileSummary"],
+            [
+                {"label": "DESCRIPTORS", "value": "1"},
+                {"label": "RESOURCES", "value": "1"},
+                {"label": "LOCKS", "value": "1"},
+                {"label": "DELETED", "value": "0", "tone": "danger"},
+            ],
+        )
+
+    def test_large_file_section_toggles_reuse_prepared_groups(self) -> None:
+        result = self.data["largeFilePresentation"]
+        self.assertEqual(result["sourceCount"], 2500)
+        self.assertEqual(result["resourceCount"], 1250)
+        self.assertEqual(result["flatCount"], 1251)
+        self.assertEqual(
+            result["sectionCountLabel"],
+            "1250 resources  ·  2500 descriptors",
+        )
+        self.assertEqual(result["expandedCount"], 1251)
+        self.assertEqual(result["collapsedCount"], 1)
+        self.assertTrue(result["rowIdentityPreserved"])
+        self.assertLess(result["prepareElapsedMs"], 1000)
+        self.assertLess(result["toggleElapsedMs"], 250)
 
     def test_explanation_drawer_keeps_claim_proof_next_step_and_timeline(self) -> None:
         rows = self.data["explanationRows"]
         self.assertEqual(
             [row["title"] for row in rows],
-            ["Listener", "Source", "Next check", "Socket opened"],
+            ["Listener", "Socket opened"],
         )
+        self.assertEqual(rows[0]["rowType"], "finding")
+        self.assertEqual(rows[0]["evidence"], ["socket inode 7"])
+        self.assertEqual(rows[0]["nextStep"], "Inspect owner")
+        self.assertEqual(rows[1]["rowType"], "timeline")
 
     def test_process_evidence_filters_sorts_and_summarizes_real_fields(self) -> None:
         self.assertEqual(self.data["processUserFilter"], [10, 11])

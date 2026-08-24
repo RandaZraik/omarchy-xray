@@ -25,21 +25,9 @@ Rectangle {
         return total;
     }
 
-    height: 46
-    radius: theme.cardRadius
-    color: theme.surfaceLow
-    border.color: theme.cardBorder
-    border.width: theme.borderWidth
-
-    AccentSignal {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: root.theme.borderWidth
-        theme: root.theme
-        radius: root.theme.cardRadius
-        fadePosition: 0.32
-    }
+    height: 38
+    radius: theme.consoleRadius
+    color: theme.consoleSurface
 
     RowLayout {
         anchors.fill: parent

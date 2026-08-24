@@ -121,13 +121,11 @@ ShellRoot {
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                readonly property bool browserPinned: width >= theme.targetBrowserPinnedWidth
 
                 Views.TargetBrowser {
                     id: targetBrowser
                     z: 2
-                    width: parent.browserPinned
-                        ? theme.targetBrowserWidth : theme.targetBrowserOverlayWidth
+                    width: theme.targetBrowserWidth
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.left: parent.left
@@ -146,14 +144,15 @@ ShellRoot {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     anchors.left: parent.left
-                    anchors.leftMargin: parent.browserPinned
-                        ? targetBrowser.width + theme.smallGap : 0
+                    anchors.leftMargin: targetBrowser.width + theme.smallGap
                     spacing: theme.smallGap
 
                     Views.IdentityBar {
                         Layout.fillWidth: true
                         theme: theme
                         snapshot: controller.snapshot
+                        performanceSamples: controller.performanceSamples
+                        performanceWindowSeconds: controller.performanceWindowSeconds
                     }
 
                     Views.DashboardGrid {
@@ -162,7 +161,6 @@ ShellRoot {
                         Layout.fillHeight: true
                         theme: theme
                         snapshot: controller.snapshot
-                        performanceSamples: controller.performanceSamples
                         onProcessSelected: function(pid) { root.record("process", pid) }
                         onDetailsRequested: function(domain) { root.record("details", domain) }
                     }
@@ -282,33 +280,23 @@ ShellRoot {
                 root.require(footer.x >= 0 && footer.x + footer.width <= window.width,
                     "footer escaped the responsive viewport")
                 ;[
-                    "xrayIdentityCard", "xrayCauseCard", "xrayProcessCard",
-                    "xrayPerformanceCard", "xrayConnectionsCard", "xrayFilesCard",
+                    "xrayIdentityRail", "xrayCauseCard", "xrayProcessCard",
+                    "xrayConnectionsCard", "xrayFilesCard",
                     "xrayDevicesCard", "xrayRuntimeCard", "xrayExplanationsCard"
                 ].forEach(function(name) {
                     var card = root.find(window.contentItem, "objectName", name)
                     root.require(card && root.insideViewport(card),
                         name + " escaped the responsive viewport")
                 })
-                var performanceCard = root.find(
-                    window.contentItem, "objectName", "xrayPerformanceCard"
+                var identityRail = root.find(
+                    window.contentItem, "objectName", "xrayIdentityRail"
                 )
-                var performanceChart = root.find(
-                    performanceCard, "objectName", "xrayPerformanceChart"
-                )
-                root.require(performanceChart
-                        && performanceChart.width > 0 && performanceChart.height > 0,
-                    "performance history plot has no usable geometry")
-                ;["CPU", "MEMORY", "NOW"].forEach(function(label) {
-                    root.require(root.find(performanceCard, "text", label),
-                        "performance card is missing its " + label + " readout")
+                ;["CPU", "MEM", "DISK I/O", "GPU", "UPTIME"].forEach(function(label) {
+                    root.require(root.find(identityRail, "text", label),
+                        "identity rail is missing its " + label + " readout")
                 })
-                root.require(performanceCard.samples === controller.performanceSamples,
-                    "performance history is not bound to the controller's timestamped samples")
-                root.require(Number((performanceCard.samples[0] || {}).capturedAt) > 0,
-                    "performance history samples have no capture timestamp")
-                root.require(header.height === 48, "header height changed")
-                root.require(footer.height === 46, "footer height changed")
+                root.require(header.height === 42, "header height changed")
+                root.require(footer.height === 38, "footer height changed")
 
                 targetBrowser.catalog = {
                     "quickTargets": [{"label": "Microphone", "query": "microphone"}],
@@ -400,14 +388,14 @@ ShellRoot {
                     "owner navigation discarded its original result set")
 
                 ;[
-                    ["Hide target browser", "browser"],
-                    ["Pick a window", "pick"],
-                    ["Pause live sampling", "pause"],
-                    ["Saved reports", "capsule"],
-                    ["X-Ray settings", "settings"],
-                    ["Close X-Ray", "close"]
+                    ["search", "browser"],
+                    ["pick", "pick"],
+                    ["pause", "pause"],
+                    ["capsule", "capsule"],
+                    ["settings", "settings"],
+                    ["close", "close"]
                 ].forEach(function(spec) {
-                    var button = root.find(header, "tooltipText", spec[0])
+                    var button = root.find(header, "iconName", spec[0])
                     root.require(button, "missing header control: " + spec[0])
                     button.clicked()
                 })

@@ -496,7 +496,7 @@ class RealApplicationTruthTests(unittest.TestCase):
         service = context.get("service", {})
         container = context.get("container", {})
         runtime_count = (
-            6
+            5
             + bool(security.get("apparmor"))
             + (security.get("oomScore") is not None)
             + bool(context.get("package", {}).get("name"))
@@ -529,11 +529,8 @@ class RealApplicationTruthTests(unittest.TestCase):
             + device_limits,
             "runtime": runtime_count,
             "cause": len(context["cause"]["nodes"]),
-            "explanations": len(snapshot["timeline"])
-            + sum(
-                1 + len(row.get("evidence", [])) + bool(row.get("nextStep"))
-                for row in snapshot["explanations"]
-            ),
+            "explanations": len(snapshot["explanations"])
+            + len(snapshot["timeline"]),
             "coverage": len(snapshot["coverage"]["available"])
             + len(snapshot["coverage"]["limited"]),
             "alternatives": len(snapshot["target"]["alternatives"]),

@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls as QQC
-import qs.Ui as Ui
 import "../controls"
 import "../Format.js" as Format
 import "../TargetSearch.js" as TargetSearch
@@ -40,27 +39,11 @@ Rectangle {
     signal catalogRequested()
     signal closeRequested()
 
-    radius: theme.cardRadius
-    border.color: theme.cardBorder
+    radius: theme.consoleRadius
+    color: theme.consoleSurface
+    border.color: theme.consoleBorder
     border.width: theme.borderWidth
     clip: true
-
-    gradient: Gradient {
-        GradientStop { position: 0; color: root.theme.surfaceMid }
-        GradientStop { position: 1; color: root.theme.surfaceLow }
-    }
-
-    Rectangle {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        width: root.theme.telemetryRailWidth
-        anchors.topMargin: root.theme.pad
-        anchors.bottomMargin: root.theme.pad
-        radius: root.theme.pillRadius
-        color: root.theme.accent
-        opacity: 0.72
-    }
 
     function normalized(value) {
         return String(value || "").trim().toLowerCase()
@@ -233,7 +216,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 1
                 PlainText {
-                    text: "Targets"
+                    text: "TARGET CATALOG"
                     color: root.theme.text
                     font.family: root.theme.bodyFont
                     font.pixelSize: root.theme.labelFontSize
@@ -263,17 +246,15 @@ Rectangle {
                 }
             }
 
-            Ui.PanelActionButton {
+            IconButton {
                 visible: root.closable
+                theme: root.theme
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                iconText: Format.icon("close")
+                width: root.theme.targetBrowserCloseSize
+                height: root.theme.targetBrowserCloseSize
+                iconName: "close"
                 tooltipText: "Hide target browser"
-                foreground: root.theme.muted
-                hoverColor: root.theme.text
-                fontFamily: root.theme.dataFont
-                fontSize: root.theme.captionFontSize
-                size: root.theme.targetBrowserCloseSize
                 onClicked: root.closeRequested()
             }
         }
@@ -290,8 +271,10 @@ Rectangle {
                 enabled: root.interactionEnabled
                 placeholderTextColor: root.theme.muted
                 font.pixelSize: root.theme.bodyFontSize
-                leftPadding: searchIcon.implicitWidth + root.theme.pad
-                rightPadding: keyboardHint.implicitWidth + root.theme.pad
+                leftPadding: root.theme.pad + searchAffordance.width
+                    + root.theme.smallGap
+                rightPadding: root.theme.pad + keyboardHint.width
+                    + root.theme.smallGap
                 placeholderText: "App, PID, :port, service…"
                 idleSurface: root.theme.previewSurface
                 focusSurface: root.theme.controlFocusSurface
@@ -318,26 +301,48 @@ Rectangle {
                     event.accepted = true
                 }
             }
-            PlainText {
-                id: searchIcon
+            Item {
+                id: searchAffordance
                 anchors.left: parent.left
-                anchors.leftMargin: root.theme.smallGap
+                anchors.leftMargin: root.theme.pad
                 anchors.verticalCenter: parent.verticalCenter
-                text: Format.icon("search")
-                color: searchField.activeFocus
-                    ? root.theme.sectionText : root.theme.muted
-                font.family: root.theme.dataFont
-                font.pixelSize: root.theme.captionFontSize
+                width: 16
+                height: 20
+
+                PlainText {
+                    anchors.centerIn: parent
+                    text: Format.icon("search")
+                    color: searchField.activeFocus
+                        ? root.theme.sectionText : root.theme.muted
+                    font.family: root.theme.dataFont
+                    font.pixelSize: root.theme.bodyFontSize
+                    renderType: Text.NativeRendering
+                }
             }
-            PlainText {
+            Rectangle {
                 id: keyboardHint
                 anchors.right: parent.right
-                anchors.rightMargin: root.theme.smallGap
+                anchors.rightMargin: root.theme.pad
                 anchors.verticalCenter: parent.verticalCenter
-                text: "CTRL K"
-                color: root.theme.muted
-                font.family: root.theme.dataFont
-                font.pixelSize: root.theme.microFontSize
+                width: keyboardHintText.implicitWidth + root.theme.gap
+                height: 20
+                radius: root.theme.controlRadius
+                color: root.theme.surfaceLow
+                border.color: searchField.activeFocus
+                    ? root.theme.controlFocusBorder : root.theme.cardBorder
+                border.width: root.theme.borderWidth
+
+                PlainText {
+                    id: keyboardHintText
+                    anchors.centerIn: parent
+                    text: "CTRL K"
+                    color: searchField.activeFocus
+                        ? root.theme.text : root.theme.muted
+                    font.family: root.theme.dataFont
+                    font.pixelSize: root.theme.microFontSize
+                    font.bold: true
+                    font.letterSpacing: root.theme.utilityTracking * 0.4
+                }
             }
         }
 
@@ -356,14 +361,9 @@ Rectangle {
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: root.theme.pillRadius
-                        color: root.activeFilter === modelData.id
-                            ? root.theme.accentSurface
-                            : filterHover.hovered
-                                ? root.theme.controlHoverSurface : root.theme.transparent
-                        border.color: root.activeFilter === modelData.id
-                            ? root.theme.accentBorder : root.theme.transparent
-                        border.width: root.theme.borderWidth
+                        radius: 0
+                        color: filterHover.hovered
+                            ? root.theme.controlHoverSurface : root.theme.transparent
                     }
                     PlainText {
                         anchors.centerIn: parent
@@ -376,16 +376,20 @@ Rectangle {
                     }
                     Rectangle {
                         visible: root.activeFilter === modelData.id
-                        width: 4
-                        height: 4
-                        radius: root.theme.pillRadius
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.left: parent.left
+                        anchors.right: parent.right
                         anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 2
+                        height: 2
                         color: root.theme.accent
                     }
-                    HoverHandler { id: filterHover }
-                    TapHandler { onTapped: root.activeFilter = modelData.id }
+                    HoverHandler {
+                        id: filterHover
+                        cursorShape: Qt.PointingHandCursor
+                    }
+                    TapHandler {
+                        cursorShape: Qt.PointingHandCursor
+                        onTapped: root.activeFilter = modelData.id
+                    }
                 }
             }
         }
@@ -441,7 +445,7 @@ Rectangle {
                         id: sectionChevron
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: sectionHeader.rowData.collapsed ? "›" : "⌄"
+                        text: sectionHeader.rowData.collapsed ? "+" : "−"
                         color: root.theme.muted
                         font.family: root.theme.dataFont
                         font.pixelSize: root.theme.captionFontSize
@@ -468,8 +472,12 @@ Rectangle {
                         font.pixelSize: root.theme.microFontSize
                     }
 
-                    HoverHandler { id: sectionHover }
+                    HoverHandler {
+                        id: sectionHover
+                        cursorShape: Qt.PointingHandCursor
+                    }
                     TapHandler {
+                        cursorShape: Qt.PointingHandCursor
                         onTapped: root.toggleGroup(sectionHeader.rowData.label)
                     }
                 }
@@ -485,7 +493,12 @@ Rectangle {
                     anchors.fill: parent
 
                     CompactRow {
-                        anchors.fill: parent
+                        id: targetRow
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.leftMargin: root.theme.targetBrowserChildIndent
                         theme: root.theme
                         title: targetItem.rowData.title || "Target"
                         subtitle: targetItem.rowData.subtitle
@@ -506,7 +519,7 @@ Rectangle {
                         width: root.theme.targetBrowserBeamWidth
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
-                        anchors.left: parent.left
+                        anchors.left: targetRow.left
                         color: root.theme.accent
                     }
                 }
