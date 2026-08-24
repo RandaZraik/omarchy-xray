@@ -180,12 +180,45 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(
             titles,
             [
-                "Listening beyond localhost",
+                "Network listener is reachable",
                 "Deleted files are still held open",
                 "Microphone capture is active",
                 "Some information is unavailable",
             ],
         )
+
+    def test_mdns_listener_is_described_as_link_local_discovery(self) -> None:
+        rows = derive_explanations(
+            snapshot(
+                connections=[
+                    {
+                        "externallyReachable": True,
+                        "multicastListener": True,
+                        "localAddress": "224.0.0.251",
+                        "localPort": 5353,
+                        "protocol": "UDP4",
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(rows[0]["id"], "multicast-listener")
+        self.assertEqual(rows[0]["title"], "mDNS discovery is active")
+        self.assertEqual(rows[0]["tone"], "info")
+        self.assertIn("local network", rows[0]["why"])
+
+    def test_findings_report_total_evidence_when_the_preview_is_bounded(self) -> None:
+        rows = derive_explanations(
+            snapshot(
+                files=[
+                    {"deleted": True, "pid": 1, "fd": index, "target": "/tmp/x"}
+                    for index in range(12)
+                ]
+            )
+        )
+
+        self.assertEqual(rows[0]["evidenceCount"], 12)
+        self.assertEqual(len(rows[0]["evidence"]), 5)
 
     def test_explanations_abstain_when_no_supported_conclusion_is_proven(self) -> None:
         rows = derive_explanations(snapshot())
@@ -239,6 +272,24 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(all(row["evidence"] for row in rows))
         self.assertTrue(all(row["nextStep"] for row in rows))
         self.assertTrue(all(row["status"] == "Found" for row in rows))
+
+    def test_root_and_disabled_seccomp_are_explicit_supported_findings(self) -> None:
+        data = snapshot()
+        data["target"] = {"ownerPid": 42}
+        data["security"] = {
+            "statusAvailable": True,
+            "uid": 0,
+            "seccomp": "Disabled",
+            "capabilities": [],
+        }
+
+        rows = derive_explanations(data)
+
+        self.assertEqual(
+            {row["id"] for row in rows},
+            {"root-process", "seccomp-disabled"},
+        )
+        self.assertTrue(all("PID 42" in row["evidence"][0] for row in rows))
 
 
 if __name__ == "__main__":

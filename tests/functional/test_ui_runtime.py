@@ -18,9 +18,12 @@ ORACLE = Path(__file__).with_name("ui_runtime_oracle.qml")
 PUBLIC_ORACLE = Path(__file__).with_name("public_ui_oracle.qml")
 TIMEOUT_ORACLE = Path(__file__).with_name("backend_timeout_oracle.qml")
 PICKER_ORACLE = Path(__file__).with_name("picker_lifecycle_oracle.qml")
-DRAWER_PERFORMANCE_ORACLE = Path(__file__).with_name(
-    "drawer_performance_oracle.qml"
-)
+DRAWER_PERFORMANCE_ORACLE = Path(__file__).with_name("drawer_performance_oracle.qml")
+DRAWER_SEARCH_ORACLE = Path(__file__).with_name("drawer_search_oracle.qml")
+DRAWER_ENVIRONMENT_KEYS = {
+    "XRAY_DRAWER_DOMAIN",
+    "XRAY_DRAWER_SECTION",
+}
 
 
 @unittest.skipUnless(
@@ -28,12 +31,23 @@ DRAWER_PERFORMANCE_ORACLE = Path(__file__).with_name(
     "requires a live Omarchy Quickshell session",
 )
 class UiRuntimeTests(unittest.TestCase):
-    def test_large_drawer_sections_toggle_without_replacing_the_model(self) -> None:
+    def _run_drawer_oracle(
+        self,
+        oracle: Path,
+        marker_name: str,
+        extra_env: dict[str, str] | None = None,
+    ) -> dict:
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in DRAWER_ENVIRONMENT_KEYS
+        }
+        environment.update(extra_env or {})
         with TemporaryDirectory() as directory:
             root = Path(directory)
             config = root / "config"
             config.mkdir()
-            shutil.copy2(DRAWER_PERFORMANCE_ORACLE, config / "shell.qml")
+            shutil.copy2(oracle, config / "shell.qml")
             shutil.copytree(PROJECT_ROOT / "ui", config / "ui")
             shutil.copytree(OMARCHY_IMPORTS / "Commons", config / "Commons")
             shutil.copytree(OMARCHY_IMPORTS / "Ui", config / "Ui")
@@ -44,10 +58,10 @@ class UiRuntimeTests(unittest.TestCase):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=15,
+                timeout=35,
                 check=False,
                 env={
-                    **os.environ,
+                    **environment,
                     "XDG_STATE_HOME": str(root / "state"),
                 },
             )
@@ -55,20 +69,58 @@ class UiRuntimeTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, output)
         marker = next(
             (
-                line.partition("XRAY_DRAWER_PERF ")[2]
+                line.partition(f"{marker_name} ")[2]
                 for line in output.splitlines()
-                if "XRAY_DRAWER_PERF " in line
+                if f"{marker_name} " in line
             ),
             "",
         )
         self.assertTrue(marker, output)
-        result = json.loads(marker)
+        return json.loads(marker)
+
+    def _drawer_performance(self, extra_env: dict[str, str] | None = None) -> dict:
+        result = self._run_drawer_oracle(
+            DRAWER_PERFORMANCE_ORACLE,
+            "XRAY_DRAWER_PERF",
+            extra_env,
+        )
+        self.assertLess(result["collapseElapsedMs"], 250)
+        self.assertLess(result["expandElapsedMs"], 250)
+        return result
+
+    def test_large_drawer_sections_toggle_without_stalling(self) -> None:
+        result = self._drawer_performance(
+            {"XRAY_DRAWER_DOMAIN": "files"}
+        )
         self.assertEqual(result["sourceCount"], 2500)
         self.assertEqual(result["resourceCount"], 1250)
         self.assertEqual(result["collapsedCount"], 1)
         self.assertEqual(result["expandedCount"], 1251)
-        self.assertLess(result["collapseElapsedMs"], 250)
-        self.assertLess(result["expandElapsedMs"], 250)
+
+    def test_runtime_section_collapse_owns_all_software_rows(self) -> None:
+        result = self._drawer_performance(
+            {
+                "XRAY_DRAWER_DOMAIN": "runtime",
+                "XRAY_DRAWER_SECTION": "software",
+            }
+        )
+        self.assertEqual(result["domain"], "runtime")
+        self.assertEqual(result["section"], "software")
+        self.assertEqual(result["resourceCount"], 188)
+        self.assertEqual(result["collapsedCount"], 11)
+        self.assertEqual(result["expandedCount"], 192)
+
+    def test_large_files_search_debounces_and_renders_without_stalling(self) -> None:
+        result = self._run_drawer_oracle(
+            DRAWER_SEARCH_ORACLE,
+            "XRAY_DRAWER_SEARCH",
+        )
+        self.assertEqual(result["sourceCount"], 12000)
+        self.assertEqual(result["resourceCount"], 3000)
+        self.assertEqual(result["filteredCount"], 2)
+        self.assertEqual(result["restoredCount"], 3001)
+        self.assertLess(result["searchElapsedMs"], 350)
+        self.assertLess(result["clearElapsedMs"], 250)
 
     def _run_picker(
         self, pick_data: dict[str, object], expected_query: str = ""

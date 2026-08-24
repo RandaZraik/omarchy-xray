@@ -206,9 +206,9 @@ QtObject {
     readonly property int drawerConnectionRowHeight: 50
     readonly property int drawerResourceRowHeight: 52
     readonly property int drawerCauseRowHeight: 54
-    readonly property int drawerFindingBaseHeight: 74
-    readonly property int drawerFindingEvidenceHeight: 25
-    readonly property int drawerFindingNextHeight: 42
+    readonly property int drawerFindingBaseHeight: 65
+    readonly property int drawerFindingEvidenceHeight: 21
+    readonly property int drawerFindingNextHeight: 31
     readonly property int drawerListInset: 8
     readonly property int drawerCauseBadgeSize: 24
     readonly property int drawerCauseConnectorX: pad + drawerCauseBadgeSize / 2

@@ -131,8 +131,11 @@ QtObject {
             })
         }
         var prepareStartedAt = Date.now()
-        var preparedLargeFiles = DetailDomains.preparePresentation(
+        var indexedLargeFiles = DetailDomains.presentationSource(
             DetailDomains.Files, largeFileRows
+        )
+        var preparedLargeFiles = DetailDomains.preparePresentationFromSource(
+            DetailDomains.Files, indexedLargeFiles
         )
         var prepareElapsedMs = Date.now() - prepareStartedAt
         var expandedLargeFiles = DetailDomains.presentationRowsFromPrepared(
@@ -214,8 +217,9 @@ QtObject {
             "largeFilePresentation": {
                 "sourceCount": largeFileRows.length,
                 "resourceCount": preparedLargeFiles.rows.length,
-                "flatCount": preparedLargeFiles.flatRows.length,
-                "sectionCountLabel": preparedLargeFiles.sections[0].countLabel,
+                "expandedModelCount": preparedLargeFiles.expandedRows.length,
+                "sectionCountLabel": preparedLargeFiles.sections[0].header.countLabel,
+                "visibleHeaderCountLabel": expandedLargeFiles[0].countLabel,
                 "expandedCount": expandedLargeFiles.length,
                 "collapsedCount": collapsedLargeFiles.length,
                 "rowIdentityPreserved": expandedLargeFiles[1]
@@ -223,6 +227,12 @@ QtObject {
                 "prepareElapsedMs": prepareElapsedMs,
                 "toggleElapsedMs": toggleElapsedMs
             },
+            "largeFilePathSearchCount": DetailDomains.filterRows(
+                indexedLargeFiles, "/tmp/resource-1249"
+            ).length,
+            "largeFilePidSearchCount": DetailDomains.filterRows(
+                indexedLargeFiles, "107"
+            ).length,
             "processUserFilter": ProcessEvidence.filter(
                 processEvidenceRows, "demo-user"
             ).map(function(row) { return row.pid }),

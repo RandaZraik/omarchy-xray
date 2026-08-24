@@ -8,7 +8,7 @@ from xray.runtime.cache import RuntimeDetailsCache
 from xray.system.commands import CommandRunner
 from xray.system.procfs import (
     ProcFs,
-    cgroup_paths,
+    cgroup_contains,
     parse_key_values,
     systemd_scope_from_cgroup,
     unit_from_cgroup,
@@ -195,10 +195,7 @@ class SystemdInspector:
             return sorted(matches)
         for pid in self.proc.pids():
             result = self.proc.read(pid, "cgroup", limit=131_072)
-            if result.available and any(
-                path == control_group or path.startswith(control_group + "/")
-                for path in cgroup_paths(result.value)
-            ):
+            if result.available and cgroup_contains(result.value, control_group):
                 matches.add(pid)
         return (
             [main_pid, *sorted(matches - {main_pid})]

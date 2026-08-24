@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls as QQC
-import QtQml.Models
 import qs.Ui
 import "../controls"
 import "../views" as Views
@@ -13,81 +12,56 @@ DrawerSurface {
     property var snapshot: ({})
     property string domain: ""
     property string filterText: ""
+    property string pendingFilterText: ""
     property bool selectionEnabled: true
     readonly property bool processDomain: domain === DetailDomains.Processes
     property var collapsedSections: ({})
     signal closed()
     signal processSelected(int pid)
-    readonly property var allRows: visible ? DetailDomains.rows(domain, snapshot) : []
+    readonly property var rawRows: visible ? DetailDomains.rows(domain, snapshot) : []
+    readonly property var allRows: rawRows
+    readonly property var searchRows: processDomain ? rawRows
+        : DetailDomains.presentationSource(domain, rawRows)
     readonly property var rows: processDomain
-        ? processTable.rows : DetailDomains.filterRows(allRows, filterText)
+        ? processTable.rows : DetailDomains.filterRows(searchRows, filterText)
     readonly property var preparedPresentation: processDomain
-        ? ({"sectioned": false, "rows": [], "sections": [], "flatRows": []})
-        : DetailDomains.preparePresentation(domain, rows)
+        ? ({"sectioned": false, "rows": [], "sections": [], "expandedRows": []})
+        : DetailDomains.preparePresentationFromSource(domain, rows)
     readonly property var displayRows: processDomain
-        ? [] : preparedPresentation.flatRows || []
-    readonly property int visibleRowCount: processDomain ? 0 : evidenceModel.count
-    readonly property var summaryStats: DetailDomains.summary(domain, snapshot, allRows)
+        ? [] : DetailDomains.presentationRowsFromPrepared(
+            domain, preparedPresentation, collapsedSections,
+            filterText.trim() !== ""
+        )
+    readonly property int visibleRowCount: processDomain ? 0 : displayRows.length
+    readonly property var summaryStats: DetailDomains.summary(domain, snapshot, searchRows)
 
-    function sectionKey(id) {
-        return root.domain + ":" + String(id || "section")
+    function queueFilterText(value) {
+        pendingFilterText = String(value || "")
+        filterDelay.restart()
+    }
+
+    function applyFilterText(value) {
+        filterDelay.stop()
+        pendingFilterText = String(value || "")
+        if (filterText !== pendingFilterText) filterText = pendingFilterText
+    }
+
+    onVisibleChanged: if (!visible) {
+        filterDelay.stop()
+        pendingFilterText = ""
+    }
+
+    onDomainChanged: {
+        filterDelay.stop()
+        pendingFilterText = ""
+        filterText = ""
     }
 
     function toggleSection(id) {
         var next = Object.assign({}, root.collapsedSections)
-        var key = root.sectionKey(id)
+        var key = DetailDomains.sectionKey(root.domain, id)
         next[key] = next[key] !== true
         root.collapsedSections = next
-        root.applySectionVisibility(id)
-    }
-
-    function sectionCollapsed(id) {
-        return filterText.trim() === ""
-            && collapsedSections[sectionKey(id)] === true
-    }
-
-    function preparedSection(id) {
-        var sections = preparedPresentation.sections || []
-        for (var index = 0; index < sections.length; index++) {
-            if (String(sections[index].id) === String(id)) return sections[index]
-        }
-        return null
-    }
-
-    function applySectionVisibility(id) {
-        var section = preparedSection(id)
-        if (!section || !section.childCount
-                || evidenceModel.items.count !== displayRows.length) return
-        var groups = ["visible"]
-        if (sectionCollapsed(id))
-            evidenceModel.items.removeGroups(
-                section.childStart, section.childCount, groups
-            )
-        else
-            evidenceModel.items.addGroups(
-                section.childStart, section.childCount, groups
-            )
-    }
-
-    function syncSectionVisibility() {
-        if (processDomain || evidenceModel.items.count !== displayRows.length) {
-            if (!processDomain) sectionSync.restart()
-            return
-        }
-        ;(preparedPresentation.sections || []).forEach(function(section) {
-            root.applySectionVisibility(section.id)
-        })
-    }
-
-    function sectionForRow(sourceIndex) {
-        var sections = preparedPresentation.sections || []
-        for (var index = 0; index < sections.length; index++) {
-            var section = sections[index]
-            if (sourceIndex >= section.childStart
-                    && sourceIndex < section.childStart + section.childCount)
-                return section
-        }
-        return null
     }
 
     function rowAccent(row) {
@@ -95,11 +69,18 @@ DrawerSurface {
     }
 
     function headerDetail() {
-        return DetailDomains.detail(root.domain, root.snapshot, root.allRows,
+        return DetailDomains.detail(root.domain, root.snapshot, root.searchRows,
             root.rows, root.filterText.trim() !== "", processTable.summary)
     }
 
     accentColor: theme.toneColor(DetailDomains.tone(domain))
+
+    Timer {
+        id: filterDelay
+        interval: 120
+        repeat: false
+        onTriggered: root.applyFilterText(root.pendingFilterText)
+    }
 
     Component {
         id: sectionRowComponent
@@ -110,7 +91,7 @@ DrawerSurface {
             title: String(parent.rowData.title || "")
             count: Number(parent.rowData.count || 0)
             countLabel: String(parent.rowData.countLabel || "")
-            collapsed: root.sectionCollapsed(parent.rowData.sectionId)
+            collapsed: parent.rowData.collapsed === true
             onToggled: parent.sectionToggled(parent.rowData.sectionId)
         }
     }
@@ -197,58 +178,6 @@ DrawerSurface {
         onClicked: function(mouse) { mouse.accepted = true; }
     }
 
-    DelegateModel {
-        id: evidenceModel
-        model: root.processDomain ? [] : root.displayRows
-        filterOnGroup: "visible"
-        groups: DelegateModelGroup {
-            name: "visible"
-            includeByDefault: true
-        }
-        delegate: Loader {
-            id: rowLoader
-            required property var modelData
-            readonly property var rowData: modelData
-            readonly property var themeValue: root.theme
-            readonly property int sourceIndex: DelegateModel.itemsIndex
-            readonly property var sourceSection: root.sectionForRow(sourceIndex)
-            readonly property color rowAccentValue: root.rowAccent(modelData)
-            readonly property bool rowSelectable: root.selectionEnabled
-                && DetailDomains.selectable(root.domain) && !!modelData.pid
-            readonly property bool firstInSection: sourceSection
-                && sourceIndex === sourceSection.childStart
-            readonly property bool lastInSection: sourceSection
-                && sourceIndex === sourceSection.childStart + sourceSection.childCount - 1
-            signal sectionToggled(string sectionId)
-            signal processChosen(int pid)
-
-            width: ListView.view.width - root.theme.drawerListInset
-            height: item ? item.implicitHeight : root.theme.compactRowHeight
-            sourceComponent: {
-                if (modelData.rowType === "section") return sectionRowComponent
-                if (modelData.rowType === "connection") return connectionRowComponent
-                if (modelData.rowType === "fileGroup" || modelData.rowType === "lock")
-                    return fileRowComponent
-                if (modelData.rowType === "device") return deviceRowComponent
-                if (modelData.rowType === "finding") return findingRowComponent
-                if (modelData.rowType === "cause") return causeRowComponent
-                return compactRowComponent
-            }
-            onSectionToggled: function(sectionId) { root.toggleSection(sectionId) }
-            onProcessChosen: function(pid) { root.processSelected(pid) }
-        }
-    }
-
-    Timer {
-        id: sectionSync
-        interval: 0
-        repeat: false
-        onTriggered: root.syncSectionVisibility()
-    }
-
-    onPreparedPresentationChanged: sectionSync.restart()
-    onFilterTextChanged: sectionSync.restart()
-
     Column {
         anchors.fill: parent
         anchors.margins: root.theme.drawerPadding
@@ -273,7 +202,9 @@ DrawerSurface {
                 ? "Filter process, command, user, or PID…"
                 : "Filter this list…"
             text: root.filterText
-            onTextChanged: root.filterText = text
+            onTextEdited: root.queueFilterText(text)
+            onAccepted: root.applyFilterText(text)
+            onEditingFinished: root.applyFilterText(text)
         }
 
         Rectangle {
@@ -310,13 +241,47 @@ DrawerSurface {
             visible: !root.processDomain
             width: parent.width
             height: parent.height - y
-            model: root.processDomain ? [] : evidenceModel
+            model: root.processDomain ? [] : root.displayRows
             reuseItems: true
             clip: true
             spacing: 0
             boundsBehavior: Flickable.StopAtBounds
 
             QQC.ScrollBar.vertical: QQC.ScrollBar { policy: QQC.ScrollBar.AsNeeded }
+
+            delegate: Loader {
+                id: rowLoader
+                required property var modelData
+                required property int index
+                readonly property var rowData: modelData
+                readonly property var themeValue: root.theme
+                readonly property int sourceIndex: index
+                readonly property color rowAccentValue: root.rowAccent(modelData)
+                readonly property bool rowSelectable: root.selectionEnabled
+                    && DetailDomains.selectable(root.domain) && !!modelData.pid
+                readonly property bool firstInSection: sourceIndex === 0
+                    || root.displayRows[sourceIndex - 1].rowType === "section"
+                readonly property bool lastInSection:
+                    sourceIndex === root.displayRows.length - 1
+                    || root.displayRows[sourceIndex + 1].rowType === "section"
+                signal sectionToggled(string sectionId)
+                signal processChosen(int pid)
+
+                width: ListView.view.width - root.theme.drawerListInset
+                height: item ? item.implicitHeight : root.theme.compactRowHeight
+                sourceComponent: {
+                    if (modelData.rowType === "section") return sectionRowComponent
+                    if (modelData.rowType === "connection") return connectionRowComponent
+                    if (modelData.rowType === "fileGroup" || modelData.rowType === "lock")
+                        return fileRowComponent
+                    if (modelData.rowType === "device") return deviceRowComponent
+                    if (modelData.rowType === "finding") return findingRowComponent
+                    if (modelData.rowType === "cause") return causeRowComponent
+                    return compactRowComponent
+                }
+                onSectionToggled: function(sectionId) { root.toggleSection(sectionId) }
+                onProcessChosen: function(pid) { root.processSelected(pid) }
+            }
 
             PlainText {
                 visible: !root.processDomain && root.rows.length === 0

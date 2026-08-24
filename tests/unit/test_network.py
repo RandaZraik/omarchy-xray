@@ -41,6 +41,22 @@ class NetworkTests(unittest.TestCase):
         self.assertTrue(rows[1]["publicListener"] is False)
         self.assertEqual(rows[1]["remotePort"], 443)
 
+    def test_link_local_multicast_is_not_a_public_listener(self) -> None:
+        multicast = (
+            "  sl  local_address rem_address st tx_queue rx_queue tr tm->when "
+            "retrnsmt uid timeout inode\n"
+            "   0: FB0000E0:14E9 00000000:0000 07 00000000:00000000 "
+            "00:00000000 00000000 1000 0 555 1\n"
+        )
+
+        row = parse_socket_table(multicast, "udp")[0]
+
+        self.assertEqual(row["localAddress"], "224.0.0.251")
+        self.assertTrue(row["listening"])
+        self.assertTrue(row["multicastListener"])
+        self.assertFalse(row["publicListener"])
+        self.assertTrue(row["externallyReachable"])
+
     def test_connection_collection_joins_socket_inode_to_process(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

@@ -41,12 +41,13 @@ QtObject {
             sections[domain] = DetailDomains.preparePresentation(
                 domain, rows[domain]
             ).sections.map(function(section) {
+                var header = section.header || {}
                 return {
                     "id": section.id,
-                    "count": section.count,
-                    "entryCount": section.entryCount,
-                    "sourceCount": section.sourceCount,
-                    "countLabel": section.countLabel
+                    "count": header.count,
+                    "entryCount": header.entryCount,
+                    "sourceCount": header.sourceCount,
+                    "countLabel": header.countLabel
                 }
             })
         })

@@ -42,10 +42,15 @@ function explanations(snapshot) {
             findingId: explanation.id || explanation.title,
             title: explanation.title || "Finding",
             subtitle: explanation.why || "",
-            meta: String(explanation.status || "").toUpperCase(),
+            meta: explanation.tone === "attention" ? "ATTENTION" : "OBSERVED",
             tone: explanation.tone || "neutral",
             domain: explanation.domain || "",
             evidence: explanation.evidence || [],
+            evidenceCount: Number(
+                explanation.evidenceCount === undefined
+                    ? (explanation.evidence || []).length
+                    : explanation.evidenceCount
+            ),
             nextStep: explanation.nextStep || "",
             searchText: [explanation.title, explanation.why,
                 (explanation.evidence || []).join(" "), explanation.nextStep,

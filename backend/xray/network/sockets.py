@@ -71,8 +71,11 @@ def parse_socket_table(text: str, protocol: str) -> list[dict[str, object]]:
         try:
             local_ip = ipaddress.ip_address(local_address)
             beyond_loopback = not local_ip.is_loopback
+            multicast = local_ip.is_multicast
         except ValueError:
             beyond_loopback = False
+            multicast = False
+        public_listener = (local_address in {"0.0.0.0", "::"}) and listening
         rows.append(
             {
                 "protocol": transport + ("6" if ipv6 else "4"),
@@ -83,7 +86,8 @@ def parse_socket_table(text: str, protocol: str) -> list[dict[str, object]]:
                 "state": state,
                 "inode": inode,
                 "listening": listening,
-                "publicListener": (local_address in {"0.0.0.0", "::"}) and listening,
+                "publicListener": public_listener,
+                "multicastListener": listening and multicast,
                 "externallyReachable": listening and beyond_loopback,
             }
         )

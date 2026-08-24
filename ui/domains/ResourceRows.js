@@ -38,8 +38,9 @@ function connections(snapshot) {
             ? Format.addressPort(row.remoteAddress, row.remotePort) : ""
         return {
             rowType: "connection",
-            section: row.publicListener || row.externallyReachable
-                ? "exposed"
+            section: row.publicListener ? "exposed"
+                : row.multicastListener ? "multicast"
+                : row.externallyReachable ? "network"
                 : row.listening ? "listeners"
                 : closingState(row.state) ? "closing" : "active",
             title: Format.addressPort(row.localAddress, row.localPort),
@@ -48,6 +49,7 @@ function connections(snapshot) {
                 + " · inode " + (row.inode === undefined ? "unknown" : row.inode)
                 + (row.networkNamespace ? " · " + row.networkNamespace : ""),
             meta: row.publicListener ? "ALL INTERFACES"
+                : row.multicastListener ? "LOCAL MULTICAST"
                 : row.externallyReachable && row.listening ? "NETWORK LISTENER"
                 : row.listening ? "LISTEN" : String(row.state || "OPEN").toUpperCase(),
             protocol: row.protocol || "",
@@ -55,6 +57,7 @@ function connections(snapshot) {
             listening: row.listening === true,
             exposed: row.publicListener === true || row.externallyReachable === true,
             publicListener: row.publicListener === true,
+            multicastListener: row.multicastListener === true,
             pids: pids,
             inode: row.inode,
             networkNamespace: row.networkNamespace || "",
@@ -161,8 +164,7 @@ function aggregateFiles(values) {
                 "deleted": row.deleted === true,
                 "icon": fileIcon(row.section),
                 "sourceCount": 0,
-                "pids": [], "fds": [], "positions": [], "flags": [], "mountIds": [],
-                "searchParts": []
+                "pids": [], "fds": [], "positions": [], "flags": [], "mountIds": []
             }
             byKey[key] = aggregate
             result.push(aggregate)
@@ -173,7 +175,6 @@ function aggregateFiles(values) {
         aggregate.positions.push(row.position)
         aggregate.flags.push(row.flags)
         aggregate.mountIds.push(row.mountId)
-        aggregate.searchParts.push(row.searchText)
     })
     result.forEach(function(row) {
         if (row.rowType !== "fileGroup") return
@@ -192,7 +193,9 @@ function aggregateFiles(values) {
         row.detail = details.join(" · ")
         row.meta = row.deleted ? "DELETED"
             : row.sourceCount > 1 ? row.sourceCount + " FDS" : "FD " + row.fds[0]
-        row.searchText = row.searchParts.join(" ")
+        row.searchText = [row.title, row.target, row.kind, row.mode, row.meta,
+            row.pids.join(" "), row.fds.join(" "), row.positions.join(" "),
+            row.flags.join(" "), row.mountIds.join(" ")].join(" ")
     })
     return result
 }

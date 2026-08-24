@@ -23,7 +23,9 @@ var descriptors = {
         "title": "Connections", "tone": "network", "rowType": "connection",
         "patchKeys": ["connections"], "fallbackSection": "active",
         "sections": [
-            {"id": "exposed", "label": "NETWORK-REACHABLE LISTENERS", "icon": "warning", "tone": "danger"},
+            {"id": "exposed", "label": "ALL-INTERFACE LISTENERS", "icon": "warning", "tone": "danger"},
+            {"id": "network", "label": "NETWORK-BOUND LISTENERS", "icon": "network"},
+            {"id": "multicast", "label": "LOCAL-LINK MULTICAST", "icon": "network"},
             {"id": "listeners", "label": "LOCAL LISTENERS", "icon": "socket"},
             {"id": "active", "label": "ACTIVE CONNECTIONS", "icon": "network"},
             {"id": "closing", "label": "CLOSING CONNECTIONS", "icon": "close"}
@@ -164,22 +166,43 @@ function rows(domain, snapshot) {
     return []
 }
 
+function sectionKey(domain, id) {
+    return String(domain || "") + ":" + String(id || "section")
+}
+
+function searchIndex(row) {
+    return [row.title, row.subtitle, row.meta, row.detail,
+        row.remote, row.searchText].join(" ").toLowerCase()
+}
+
+function presentationSource(domain, values) {
+    var source = domain === Files
+        ? ResourceRows.aggregateFiles(values) : (values || [])
+    return source.map(function(row) {
+        return Object.assign({}, row, {"searchIndex": searchIndex(row)})
+    })
+}
+
 function filterRows(values, query) {
     var needle = String(query || "").trim().toLowerCase()
     if (!needle) return values || []
     return (values || []).filter(function(row) {
-        var haystack = [row.title, row.subtitle, row.meta, row.detail,
-            row.remote, row.searchText].join(" ").toLowerCase()
+        var haystack = row.searchIndex === undefined
+            ? searchIndex(row) : String(row.searchIndex)
         return haystack.indexOf(needle) >= 0
     })
 }
 
 function preparePresentation(domain, values) {
+    return preparePresentationFromSource(domain, presentationSource(domain, values))
+}
+
+function preparePresentationFromSource(domain, source) {
     var descriptor = descriptors[domain] || {}
     var sections = (descriptor.sections || []).slice()
-    var source = domain === Files ? ResourceRows.aggregateFiles(values) : (values || [])
+    source = source || []
     if (!sections.length)
-        return {"sectioned": false, "rows": source, "sections": [], "flatRows": source}
+        return {"sectioned": false, "rows": source, "sections": [], "expandedRows": source}
     var groups = ({})
     sections.forEach(function(section) { groups[section.id] = [] })
     var fallback = descriptor.fallbackSection || "other"
@@ -192,7 +215,7 @@ function preparePresentation(domain, values) {
         groups[groups[section] ? section : fallback].push(row)
     })
     var preparedSections = []
-    var flatRows = []
+    var expandedRows = []
     sections.forEach(function(section) {
         var sectionRows = groups[section.id] || []
         if (!sectionRows.length) return
@@ -218,19 +241,11 @@ function preparePresentation(domain, values) {
             "countLabel": countLabel,
             "collapsed": false
         }
-        flatRows.push(header)
-        var childStart = flatRows.length
-        sectionRows.forEach(function(row) { flatRows.push(row) })
+        expandedRows.push(header)
+        sectionRows.forEach(function(row) { expandedRows.push(row) })
         preparedSections.push({
             "id": section.id,
-            "label": section.label,
-            "icon": section.icon,
-            "count": sourceCount,
-            "entryCount": entryCount,
-            "sourceCount": sourceCount,
-            "countLabel": countLabel,
-            "headerIndex": childStart - 1,
-            "childStart": childStart,
+            "header": header,
             "childCount": entryCount,
             "rows": sectionRows
         })
@@ -239,26 +254,23 @@ function preparePresentation(domain, values) {
         "sectioned": true,
         "rows": source,
         "sections": preparedSections,
-        "flatRows": flatRows
+        "expandedRows": expandedRows
     }
 }
 
 function presentationRowsFromPrepared(domain, prepared, collapsedSections, filtering) {
     prepared = prepared || {"sectioned": false, "rows": [], "sections": []}
     if (!prepared.sectioned) return prepared.rows || []
+    var sections = prepared.sections || []
+    var hasCollapsedSection = !filtering && sections.some(function(section) {
+        return (collapsedSections || {})[sectionKey(domain, section.id)] === true
+    })
+    if (!hasCollapsedSection) return prepared.expandedRows || []
     var result = []
-    ;(prepared.sections || []).forEach(function(section) {
-        var key = domain + ":" + section.id
+    sections.forEach(function(section) {
+        var key = sectionKey(domain, section.id)
         var collapsed = !filtering && (collapsedSections || {})[key] === true
-        result.push({
-            "rowType": "section",
-            "sectionId": section.id,
-            "section": section.id,
-            "title": section.label,
-            "icon": section.icon,
-            "count": section.count,
-            "collapsed": collapsed
-        })
+        result.push(Object.assign({}, section.header, {"collapsed": collapsed}))
         if (collapsed) return
         section.rows.forEach(function(row) { result.push(row) })
     })
@@ -297,12 +309,14 @@ function summary(domain, snapshot, allRows) {
             {"label": "LISTENERS", "value": String(connections.filter(function(row) { return row.listening === true }).length)},
             {"label": "REMOTE", "value": String(connections.filter(function(row) { return Number(row.remotePort || 0) > 0 }).length)},
             {"label": "NAMESPACES", "value": String(uniqueCount(connections.map(function(row) { return row.networkNamespace })))},
-            {"label": "EXPOSED", "value": String(connections.filter(function(row) { return row.externallyReachable === true }).length), "tone": "danger"}
+            {"label": "NETWORK", "value": String(connections.filter(function(row) { return row.externallyReachable === true }).length), "tone": "neutral"}
         ]
     }
     if (domain === Files) {
         var files = snapshot.files || []
-        var resources = ResourceRows.aggregateFiles(allRows || rows(Files, snapshot))
+        var resources = allRows || rows(Files, snapshot)
+        if (resources.some(function(row) { return row.rowType === "file" }))
+            resources = ResourceRows.aggregateFiles(resources)
         return [
             {"label": "DESCRIPTORS", "value": String(files.length)},
             {"label": "RESOURCES", "value": String(resources.filter(function(row) { return row.rowType === "fileGroup" }).length)},
@@ -311,12 +325,18 @@ function summary(domain, snapshot, allRows) {
         ]
     }
     if (domain === Explanations) {
-        var findings = snapshot.explanations || []
+        var explanationRows = allRows || rows(Explanations, snapshot)
+        var findings = explanationRows.filter(function(row) {
+            return row.rowType === "finding"
+        })
+        var changes = explanationRows.filter(function(row) {
+            return row.rowType === "timeline"
+        })
         return [
             {"label": "FINDINGS", "value": String(findings.length), "tone": "neutral"},
             {"label": "ATTENTION", "value": String(findings.filter(function(row) { return row.tone === "attention" }).length), "tone": "danger"},
-            {"label": "EVIDENCE", "value": String(findings.reduce(function(total, row) { return total + (row.evidence || []).length }, 0)), "tone": "neutral"},
-            {"label": "CHANGES", "value": String((snapshot.timeline || []).length), "tone": "neutral"}
+            {"label": "EVIDENCE", "value": String(findings.reduce(function(total, row) { return total + Number(row.evidenceCount || 0) }, 0)), "tone": "neutral"},
+            {"label": "CHANGES", "value": String(changes.length), "tone": "neutral"}
         ]
     }
     if (domain === Coverage) {
@@ -344,11 +364,11 @@ function detail(domain, snapshot, allRows, filteredRows, filtering, processSumma
             + (filtering ? " of " + allRows.length : "") + " records"
     }
     if (domain === Explanations)
-        return (snapshot.explanations || []).length + " findings  ·  "
+        return (snapshot.explanations || []).length + " supported findings  ·  "
             + (snapshot.timeline || []).length + " changes"
     if (domain === Files) {
         if (filtering)
-            return filteredRows.length + " of " + allRows.length + " evidence records"
+            return filteredRows.length + " of " + allRows.length + " resources"
         return (snapshot.files || []).length + " descriptors  ·  "
             + (snapshot.locks || []).length + " locks"
     }

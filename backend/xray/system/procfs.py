@@ -137,6 +137,14 @@ def cgroup_paths(text: str) -> list[str]:
     ]
 
 
+def cgroup_contains(text: str, control_group: str) -> bool:
+    group = control_group.rstrip("/") or "/"
+    return any(
+        path.rstrip("/") == group or (group != "/" and path.startswith(group + "/"))
+        for path in cgroup_paths(text)
+    )
+
+
 def unit_from_cgroup(text: str) -> str:
     for path in cgroup_paths(text):
         for segment in reversed(path.split("/")):

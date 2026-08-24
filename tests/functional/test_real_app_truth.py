@@ -1144,10 +1144,18 @@ class RealApplicationTruthTests(unittest.TestCase):
     def _assert_explanations(self, snapshot: dict[str, object]) -> None:
         triggers = {
             "public-listener": any(
-                row["externallyReachable"] for row in snapshot["connections"]
+                row["externallyReachable"] and not row.get("multicastListener", False)
+                for row in snapshot["connections"]
+            ),
+            "multicast-listener": any(
+                row.get("multicastListener", False) for row in snapshot["connections"]
             ),
             "deleted-open-files": any(row["deleted"] for row in snapshot["files"]),
             "file-locks": bool(snapshot["locks"]),
+            "root-process": snapshot["security"].get("statusAvailable") is True
+            and snapshot["security"].get("uid") == 0,
+            "seccomp-disabled": snapshot["security"].get("statusAvailable") is True
+            and snapshot["security"].get("seccomp") == "Disabled",
             "effective-capabilities": bool(snapshot["security"]["capabilities"]),
             "privileged-container": bool(
                 snapshot["context"].get("container", {}).get("privileged")
@@ -1162,7 +1170,9 @@ class RealApplicationTruthTests(unittest.TestCase):
         privacy = [
             row
             for row in snapshot["devices"]["pipewire"]
-            if row["active"] and row["kind"] in {"microphone", "camera", "screen"}
+            if row["active"]
+            and row["kind"]
+            in {"microphone", "camera", "screen", "audio-capture", "video"}
         ]
         for row in snapshot["explanations"]:
             identifier = row["id"]
@@ -1241,7 +1251,7 @@ class RealApplicationTruthTests(unittest.TestCase):
             "runtime": f"{runtime_count} evidence records",
             "cause": f"{len(context['cause']['nodes'])} launch steps",
             "explanations": (
-                f"{len(snapshot['explanations'])} findings  ·  "
+                f"{len(snapshot['explanations'])} supported findings  ·  "
                 f"{len(snapshot['timeline'])} changes"
             ),
             "coverage": (
@@ -1283,7 +1293,7 @@ class RealApplicationTruthTests(unittest.TestCase):
                         }
                     )
                 ),
-                "EXPOSED": str(
+                "NETWORK": str(
                     sum(row["externallyReachable"] is True for row in connections)
                 ),
             },
@@ -1336,7 +1346,12 @@ class RealApplicationTruthTests(unittest.TestCase):
                 "ATTENTION": str(
                     sum(row.get("tone") == "attention" for row in findings)
                 ),
-                "EVIDENCE": str(sum(len(row.get("evidence", [])) for row in findings)),
+                "EVIDENCE": str(
+                    sum(
+                        int(row.get("evidenceCount", len(row.get("evidence", []))))
+                        for row in findings
+                    )
+                ),
                 "CHANGES": str(len(snapshot["timeline"])),
             },
         )

@@ -449,6 +449,45 @@ class RuntimeIntelligenceTests(unittest.TestCase):
             ["systemd", "app-editor.scope", "editor"],
         )
 
+    def test_transient_scope_precedes_its_first_ancestry_member(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            scope = (
+                "/user.slice/user-1000.slice/user@1000.service/app.slice/"
+                "tmux-spawn-demo.scope"
+            )
+            write_process(root, 1, "systemd", 0, 1)
+            write_process(root, 1132, "systemd", 1, 2)
+            write_process(root, 9227, "tmux: server", 1132, 3)
+            write_process(root, 885962, "zsh", 9227, 4, f"0::{scope}\n")
+            write_process(root, 887787, "uv", 885962, 5, f"0::{scope}\n")
+            write_process(root, 887795, "adw", 887787, 6, f"0::{scope}\n")
+            cause = build_cause_chain(
+                ProcFs(root),
+                887795,
+                {
+                    "id": "tmux-spawn-demo.scope",
+                    "description": "tmux child pane",
+                    "scope": "user",
+                    "mainPid": 0,
+                    "controlGroup": scope,
+                },
+                {},
+            )
+
+        self.assertEqual(
+            [row["title"] for row in cause["nodes"]],
+            [
+                "systemd",
+                "systemd",
+                "tmux: server",
+                "tmux-spawn-demo.scope",
+                "zsh",
+                "uv",
+                "adw",
+            ],
+        )
+
     def test_live_parent_chain_does_not_claim_original_launch_provenance(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

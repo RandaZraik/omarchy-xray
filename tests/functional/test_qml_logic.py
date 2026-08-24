@@ -130,7 +130,9 @@ class QmlLogicTests(unittest.TestCase):
         self.assertNotIn("•", self.data["deviceIcons"])
         self.assertEqual(len(set(self.data["deviceIcons"])), 4)
 
-    def test_detail_rows_keep_low_level_connection_and_descriptor_evidence(self) -> None:
+    def test_detail_rows_keep_low_level_connection_and_descriptor_evidence(
+        self,
+    ) -> None:
         connection = self.data["connectionRows"][0]
         self.assertEqual(connection["pids"], [10])
         self.assertEqual(connection["inode"], 77)
@@ -213,9 +215,13 @@ class QmlLogicTests(unittest.TestCase):
         result = self.data["largeFilePresentation"]
         self.assertEqual(result["sourceCount"], 2500)
         self.assertEqual(result["resourceCount"], 1250)
-        self.assertEqual(result["flatCount"], 1251)
+        self.assertEqual(result["expandedModelCount"], 1251)
         self.assertEqual(
             result["sectionCountLabel"],
+            "1250 resources  ·  2500 descriptors",
+        )
+        self.assertEqual(
+            result["visibleHeaderCountLabel"],
             "1250 resources  ·  2500 descriptors",
         )
         self.assertEqual(result["expandedCount"], 1251)
@@ -223,6 +229,8 @@ class QmlLogicTests(unittest.TestCase):
         self.assertTrue(result["rowIdentityPreserved"])
         self.assertLess(result["prepareElapsedMs"], 1000)
         self.assertLess(result["toggleElapsedMs"], 250)
+        self.assertEqual(self.data["largeFilePathSearchCount"], 1)
+        self.assertGreater(self.data["largeFilePidSearchCount"], 0)
 
     def test_explanation_drawer_keeps_claim_proof_next_step_and_timeline(self) -> None:
         rows = self.data["explanationRows"]

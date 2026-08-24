@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from xray.config import LIMITS
 from xray.processes.identity import parse_stat
-from xray.system.procfs import ProcFs, parse_key_values
+from xray.system.procfs import ProcFs, cgroup_contains, parse_key_values
 
 
 _SHELLS = {"bash", "dash", "fish", "nu", "sh", "zsh"}
@@ -116,6 +116,25 @@ def _container_node(container: dict[str, object]) -> list[dict[str, object]]:
     ]
 
 
+def _first_control_group_member(
+    proc: ProcFs,
+    nodes: list[dict[str, object]],
+    control_group: str,
+) -> int | None:
+    if not control_group.rstrip("/"):
+        return None
+    for index, node in enumerate(nodes):
+        pid = int(node.get("pid", 0))
+        if pid <= 0:
+            continue
+        result = proc.read(pid, "cgroup")
+        if not result.available:
+            continue
+        if cgroup_contains(result.value, control_group):
+            return index
+    return None
+
+
 def build_cause_chain(
     proc: ProcFs,
     owner_pid: int,
@@ -141,7 +160,15 @@ def build_cause_chain(
             merged.append(node)
     unmatched = [node for node in semantic_nodes if int(node.get("pid", 0)) <= 0]
     unmatched.extend(node for group in replacements.values() for node in group)
-    nodes = [*merged[:-1], *unmatched, merged[-1]] if merged else unmatched
+    nodes = list(merged)
+    control_group = str(service.get("controlGroup", "")) if service else ""
+    for node in unmatched:
+        position = None
+        if node.get("kind") == "service":
+            position = _first_control_group_member(proc, nodes, control_group)
+        if position is None:
+            position = max(0, len(nodes) - 1)
+        nodes.insert(position, node)
     service_id = str(service.get("id", "")) if service else ""
     if container and service and service_id.endswith(".service"):
         summary = f"Running in {container.get('name') or container.get('shortId') or 'a container'}, managed by {service_id}"
