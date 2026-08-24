@@ -1,5 +1,6 @@
 import QtQuick
 import ".."
+import "../DetailDomains.js" as DetailDomains
 
 Item {
     id: root

@@ -116,6 +116,7 @@ class QmlLogicTests(unittest.TestCase):
     def test_network_endpoints_are_unambiguous(self) -> None:
         self.assertEqual(self.data["ipv4Endpoint"], "127.0.0.1:443")
         self.assertEqual(self.data["ipv6Endpoint"], "[2001:db8::1]:443")
+        self.assertEqual(self.data["defaultMemory"], "621.6 MiB")
 
     def test_every_detail_domain_exposes_its_complete_rows(self) -> None:
         self.assertEqual(self.data["detailCounts"], self.data["detailRowCounts"])
@@ -152,6 +153,38 @@ class QmlLogicTests(unittest.TestCase):
         self.assertEqual(
             [row["title"] for row in rows],
             ["Listener", "Source", "Next check", "Socket opened"],
+        )
+
+    def test_process_evidence_filters_sorts_and_summarizes_real_fields(self) -> None:
+        self.assertEqual(self.data["processUserFilter"], [10, 11])
+        self.assertEqual(self.data["processPidFilter"], [11])
+        self.assertEqual(self.data["processNameFilter"], [11])
+        self.assertEqual(self.data["processCommandFilter"], [11])
+        self.assertEqual(self.data["processFallbackUidFilter"], [12])
+        self.assertEqual(self.data["processNonBtopFieldFilter"], [])
+        self.assertEqual(self.data["processCpuSort"], [11, 10, 12])
+        self.assertEqual(self.data["processCommandSort"], [12, 10, 11])
+        self.assertEqual(self.data["processTreeOrder"], [10, 11, 12])
+        self.assertEqual(
+            self.data["processSummary"],
+            {"processes": 3, "threads": 9, "memoryBytes": 7168},
+        )
+        self.assertEqual(self.data["processFallbackUser"], "UID 4242")
+        self.assertEqual(self.data["processState"], "running")
+        self.assertEqual(self.data["processCommand"], "root --safe")
+        self.assertEqual(
+            self.data["processConciseCommand"], "adw dashboard --port 9000"
+        )
+        self.assertEqual(self.data["processCommandLauncher"], "via python3")
+        self.assertEqual(
+            self.data["embeddedArgvConciseCommand"],
+            "chromium --load-extension=/usr/share/omarchy/extensions/"
+            "whatsapp-slim --oauth2-client-id=demo",
+        )
+        self.assertEqual(
+            self.data["variantStyleProcessCommand"],
+            "/workspace/.venv/bin/python3 /workspace/.venv/bin/adw "
+            "dashboard --port 9000",
         )
 
 

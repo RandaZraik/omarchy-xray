@@ -19,6 +19,8 @@ Item {
     property bool browserOpen: false
     property string currentQuery: ""
     readonly property bool browserPinned: desk.width >= theme.targetBrowserPinnedWidth
+    readonly property bool dashboardInteractive: controller.drawer === ""
+        && !controller.pendingAction
 
     function open(payloadJson) {
         inspectionScreen = focusedScreen();
@@ -73,7 +75,7 @@ Item {
     Shortcut {
         sequence: "Ctrl+K"
         context: Qt.ApplicationShortcut
-        enabled: controller.opened && controller.drawer === "" && !controller.pendingAction
+        enabled: controller.opened && root.dashboardInteractive
         onActivated: {
             root.browserOpen = true;
             Qt.callLater(function() { targetBrowser.focusSearch(true); });
@@ -176,6 +178,7 @@ Item {
                             id: targetBrowser
                             z: root.browserPinned ? 0 : 21
                             visible: root.browserOpen
+                            enabled: root.dashboardInteractive
                             width: root.browserPinned
                                 ? Math.min(theme.targetBrowserWidth, workspace.width * 0.28)
                                 : Math.min(theme.targetBrowserOverlayWidth, workspace.width * 0.86)
@@ -196,6 +199,7 @@ Item {
 
                         ColumnLayout {
                             id: dashboardColumn
+                            enabled: root.dashboardInteractive
                             anchors.top: parent.top
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
@@ -253,7 +257,9 @@ Item {
                     objectName: "xrayDetailDrawer"
                     visible: controller.drawer === controller.detailsDrawer
                     z: 41
-                    width: Math.min(620, parent.width * 0.46)
+                    width: controller.detailDomain === DetailDomains.Processes
+                        ? Math.min(1120, parent.width * 0.82)
+                        : Math.min(620, parent.width * 0.46)
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right

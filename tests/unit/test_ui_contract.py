@@ -61,6 +61,39 @@ class UiContractTests(unittest.TestCase):
         self.assertNotIn("ListView", cards)
         self.assertIn("ScrollBar.vertical", source("ui/drawers/DetailDrawer.qml"))
 
+    def test_process_drilldown_exposes_task_manager_and_xray_evidence(self) -> None:
+        table = source("ui/views/ProcessEvidenceTable.qml")
+        for field in (
+            "PROCESS / COMMAND",
+            "PID",
+            "USER",
+            "THREADS",
+            "MEMORY",
+            "CPU",
+            "READ / WRITE",
+        ):
+            self.assertIn(field, table)
+        self.assertIn('property string sortKey: "tree"', table)
+        self.assertIn("ProcessEvidence.filter", table)
+        self.assertIn("ProcessEvidence.sort", table)
+        self.assertIn("ProcessEvidence.presentation", table)
+        self.assertIn('objectName: "xraySelectedProcessCommand"', table)
+        self.assertIn("text: root.selectedCommand", table)
+
+    def test_detail_drawer_blocks_clicks_from_reaching_dashboard_cards(self) -> None:
+        drawer = source("ui/drawers/DetailDrawer.qml")
+        overlay = source("ui/XRayOverlay.qml")
+        self.assertIn('objectName: "xrayDrawerInputBarrier"', drawer)
+        self.assertIn("acceptedButtons: Qt.AllButtons", drawer)
+        self.assertIn("preventStealing: true", drawer)
+        self.assertIn("readonly property bool dashboardInteractive", overlay)
+        self.assertGreaterEqual(overlay.count("enabled: root.dashboardInteractive"), 2)
+
+    def test_detail_drawer_live_patch_imports_domain_helper(self) -> None:
+        controller = source("ui/controllers/XRayController.qml")
+        self.assertIn('import "../DetailDomains.js" as DetailDomains', controller)
+        self.assertIn("DetailDomains.patchTouches", controller)
+
     def test_open_overlay_is_pinned_to_its_original_monitor(self) -> None:
         overlay = source("ui/XRayOverlay.qml")
         self.assertIn("inspectionScreen = focusedScreen()", overlay)
@@ -150,7 +183,9 @@ class UiContractTests(unittest.TestCase):
             r"(?m)^    permissions:\n      contents: read$",
         )
         self.assertIn("uses: ./.github/workflows/ci.yml", portable_tests)
-        self.assertIn("target: ${{ needs.validate.outputs.target_sha }}", portable_tests)
+        self.assertIn(
+            "target: ${{ needs.validate.outputs.target_sha }}", portable_tests
+        )
 
         self.assertIn("needs: [validate, portable-tests]", draft)
         self.assertRegex(draft, r"(?m)^    permissions:\n      contents: write$")

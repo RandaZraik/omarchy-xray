@@ -7,10 +7,10 @@ function number(value, digits) {
 
 function bytes(value) {
     var numeric = Math.max(0, Number(value || 0))
-    var units = ["B", "KB", "MB", "GB", "TB"]
+    var units = ["B", "KiB", "MiB", "GiB", "TiB"]
     var index = 0
-    while (numeric >= 1000 && index < units.length - 1) {
-        numeric /= 1000
+    while (numeric >= 1024 && index < units.length - 1) {
+        numeric /= 1024
         index++
     }
     return (index === 0 ? Math.round(numeric) : numeric.toFixed(numeric >= 10 ? 1 : 2)) + " " + units[index]
@@ -57,8 +57,14 @@ function basename(path) {
 }
 
 function firstCommand(command) {
-    if (!Array.isArray(command) || command.length === 0) return ""
-    return command.map(function(value) { return String(value) }).join(" ")
+    if (!command) return ""
+    if (typeof command === "string") return command
+    var length = Number(command.length)
+    if (!isFinite(length) || length < 1) return ""
+    var values = []
+    for (var index = 0; index < length; index++)
+        values.push(String(command[index]))
+    return values.join(" ")
 }
 
 function icon(name) {

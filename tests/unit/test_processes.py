@@ -1,9 +1,16 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+import os
 import unittest
 from unittest.mock import patch
 
-from xray.processes.collector import ProcessMetadataCache, collect_tree, descendant_pids
+from xray.processes.collector import (
+    ProcessMetadataCache,
+    collect_tree,
+    descendant_pids,
+    user_name,
+)
 from xray.processes.identity import parse_stat, same_user_pids
 from xray.processes.identity import ProcessIdentity
 from xray.config import LIMITS
@@ -12,6 +19,9 @@ from support.procfs import stat_line, write_process
 
 
 class ProcessTests(unittest.TestCase):
+    def tearDown(self) -> None:
+        user_name.cache_clear()
+
     def test_stat_parser_handles_parentheses_in_name(self) -> None:
         parsed = parse_stat(stat_line(8, "renderer (gpu)", 2, 99))
         self.assertEqual(parsed["comm"], "renderer (gpu)")
@@ -41,11 +51,60 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(collection.root_identity.key, "10:100")
         self.assertEqual([row["pid"] for row in collection.rows], [10, 11])
         self.assertEqual([row["depth"] for row in collection.rows], [0, 1])
+        self.assertTrue(collection.rows[0]["user"])
         self.assertEqual(collection.rows[0]["environmentNames"], ["LANG", "TOKEN"])
         self.assertNotIn("secret", repr(collection.rows[0]))
         self.assertEqual(
             collection.rows[0]["command"], ["app", "--token", "<redacted>"]
         )
+
+    def test_process_rows_include_a_human_user_name_with_numeric_fallback(self) -> None:
+        user_name.cache_clear()
+        with patch(
+            "xray.processes.collector.pwd.getpwuid",
+            return_value=SimpleNamespace(pw_name="demo-user"),
+        ):
+            self.assertEqual(user_name(1000), "demo-user")
+
+        user_name.cache_clear()
+        with patch("xray.processes.collector.pwd.getpwuid", side_effect=KeyError):
+            self.assertEqual(user_name(4242), "4242")
+
+    def test_process_memory_uses_the_same_stat_rss_counter_as_btop(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_process(
+                root,
+                10,
+                "app",
+                1,
+                rss_pages=5,
+                command=b"app\0",
+                environ=b"",
+                status_lines=("Threads:\t1", "VmRSS:\t999 kB"),
+            )
+            collection = collect_tree(ProcFs(root), 10)
+
+        self.assertEqual(
+            collection.rows[0]["memoryBytes"], 5 * os.sysconf("SC_PAGE_SIZE")
+        )
+
+    def test_zero_stat_rss_does_not_fall_back_to_status_memory(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_process(
+                root,
+                10,
+                "zombie",
+                1,
+                rss_pages=0,
+                command=b"zombie\0",
+                environ=b"",
+                status_lines=("Threads:\t1", "VmRSS:\t999 kB"),
+            )
+            collection = collect_tree(ProcFs(root), 10)
+
+        self.assertEqual(collection.rows[0]["memoryBytes"], 0)
 
     def test_live_tree_uses_kernel_children_without_a_global_process_scan(self) -> None:
         with TemporaryDirectory() as directory:

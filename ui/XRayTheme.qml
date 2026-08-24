@@ -123,6 +123,16 @@ QtObject {
     readonly property color trace: cpuAccent
     readonly property color secondaryTrace: memoryAccent
 
+    // Reserve semantic colors for abnormal process states.
+    readonly property color inspectorAccent: accent
+    readonly property color inspectorAccentText: sectionText
+    readonly property color inspectorAccentBorder: blend(cardBorder, accent, 0.55)
+    readonly property color inspectorCanvas: blend(panel, text, 0.025)
+    readonly property color inspectorTableSurface: blend(panel, text, 0.045)
+    readonly property color inspectorHeaderSurface: blend(panel, text, 0.095)
+    readonly property color inspectorRaisedSurface: blend(panel, text, 0.075)
+    readonly property color inspectorSelectedSurface: blend(panel, accent, 0.12)
+
     readonly property string bodyFont: Style.font.family
     readonly property string dataFont: Style.font.family
     readonly property int microFontSize: Style.font.caption
@@ -157,6 +167,30 @@ QtObject {
     readonly property int targetBrowserSectionHeight: Style.space(26)
     readonly property int targetBrowserTabIndicatorHeight: Math.max(2, borderWidth * 2)
     readonly property int targetBrowserBeamWidth: Math.max(2, borderWidth * 2)
+    readonly property int processEvidenceExpandedWidth: Style.space(720)
+    // Dense system data still has to be comfortably scannable at native
+    // monitor scale. Keep these above the shell's caption-size defaults.
+    readonly property int processEvidenceHeaderFontSize: Math.max(
+        bodyFontSize, labelFontSize
+    )
+    readonly property int processEvidencePrimaryFontSize: Math.max(
+        labelFontSize, summaryFontSize
+    )
+    readonly property int processEvidenceValueFontSize: Math.max(
+        labelFontSize, summaryFontSize
+    )
+    readonly property int processEvidenceSecondaryFontSize: Math.max(
+        bodyFontSize, labelFontSize
+    )
+    readonly property int processEvidenceBadgeFontSize: Math.max(
+        microFontSize, bodyFontSize
+    )
+    readonly property int processEvidenceCommandHeight: Style.space(78)
+    readonly property int processEvidenceHeaderHeight: Style.space(42)
+    readonly property int processEvidenceRowHeight: Style.space(64)
+    readonly property int processEvidenceIndent: Style.space(8)
+    readonly property int processEvidenceBranchWidth: Style.space(9)
+    readonly property int processEvidenceMaximumDepth: 7
     readonly property int telemetryHeight: Style.space(72)
     readonly property int telemetryTargetWidth: Style.space(340)
     readonly property int telemetryTargetMinimumWidth: Style.space(240)

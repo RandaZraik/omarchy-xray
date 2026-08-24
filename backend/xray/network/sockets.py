@@ -231,8 +231,16 @@ def owners_for_port(
 ) -> tuple[list[int], list[str]]:
     all_pids = pids if pids is not None else same_user_pids(proc)
     rows, limited = owned_socket_rows(proc, all_pids, inventory)
-    matched: set[int] = set()
+    priority_by_pid: dict[int, int] = {}
     for row in rows:
-        if int(row["localPort"]) == port or int(row["remotePort"]) == port:
-            matched.update(row["pids"])
-    return sorted(matched), limited
+        local_match = int(row["localPort"]) == port
+        remote_match = int(row["remotePort"]) == port
+        if not local_match and not remote_match:
+            continue
+        priority = 0 if local_match and row["listening"] else 1 if local_match else 2
+        for pid in row["pids"]:
+            normalized = int(pid)
+            priority_by_pid[normalized] = min(
+                priority, priority_by_pid.get(normalized, priority)
+            )
+    return sorted(priority_by_pid, key=lambda pid: (priority_by_pid[pid], pid)), limited

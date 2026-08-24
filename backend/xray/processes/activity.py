@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import os
 import time
 
 from xray.system.procfs import ProcFs, first_int, parse_key_values
@@ -55,7 +54,6 @@ class ActivitySampler:
         elapsed = max(0.001, sampled_at - self.previous_at) if self.previous_at else 0.0
         total_delta = max(0, current_total - self.previous_total_ticks)
         baseline_ready = self.previous_at > 0 and self.previous_total_ticks > 0
-        cores = max(1, os.cpu_count() or 1)
         cpu_available = cpu.available
         current_process: dict[str, tuple[int, int | None, int | None]] = {}
         unavailable_io: list[int] = []
@@ -89,9 +87,11 @@ class ActivitySampler:
                 and total_delta > 0
                 and elapsed > 0
             ):
-                process_cpu = max(
-                    0.0, (ticks - previous[0]) / total_delta * cores * 100.0
-                )
+                # Match btop's default ``proc_per_core = False`` process-list
+                # semantics: a process gets its share of the machine's total
+                # CPU capacity. A fully busy thread is therefore roughly
+                # 100 / logical_cpu_count percent, not 100 percent.
+                process_cpu = max(0.0, (ticks - previous[0]) / total_delta * 100.0)
             if (
                 baseline_ready
                 and previous

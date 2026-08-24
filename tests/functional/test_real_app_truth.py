@@ -4,6 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
+import pwd
 import shutil
 import subprocess
 from tempfile import TemporaryDirectory
@@ -23,6 +24,7 @@ from machine_truth import (
     raw_socket_inventory,
     rendered_details,
 )
+from xray.evidence.redaction import redact_command
 
 
 HAS_DESKTOP = bool(
@@ -71,7 +73,27 @@ class RealApplicationTruthTests(unittest.TestCase):
 
     @staticmethod
     def _live_domains(pids: list[int]) -> dict[str, object]:
+        processes: dict[int, dict[str, object]] = {}
+        for pid in pids:
+            try:
+                raw_command = Path(f"/proc/{pid}/cmdline").read_bytes()
+                processes[pid] = {
+                    "stat": proc_stat(pid),
+                    "status": proc_status(pid),
+                    "command": redact_command(
+                        [
+                            part.decode("utf-8", errors="replace")
+                            for part in raw_command.split(b"\0")
+                            if part
+                        ]
+                    ),
+                    "executable": os.readlink(f"/proc/{pid}/exe"),
+                    "cwd": os.readlink(f"/proc/{pid}/cwd"),
+                }
+            except OSError:
+                continue
         return {
+            "processes": processes,
             "connections": raw_socket_inventory(pids),
             "files": {
                 (pid, fd, target)
@@ -139,9 +161,7 @@ class RealApplicationTruthTests(unittest.TestCase):
         self.assertEqual(metrics["threads"], sum(int(row["threads"]) for row in rows))
         if metrics["cpuAvailable"]:
             self.assertGreaterEqual(float(metrics["cpuPercent"]), 0)
-            self.assertLessEqual(
-                float(metrics["cpuPercent"]), (os.cpu_count() or 1) * 100
-            )
+            self.assertLessEqual(float(metrics["cpuPercent"]), 100)
         else:
             self.assertIsNone(metrics["cpuPercent"])
             self.assertEqual(metrics["cpuStatus"], "baseline")
@@ -158,20 +178,61 @@ class RealApplicationTruthTests(unittest.TestCase):
         verified = 0
         for row in rows:
             pid = int(row["pid"])
-            try:
-                stat = proc_stat(pid)
-                status = proc_status(pid)
-            except OSError:
+            candidates = [
+                snapshot_row
+                for source in (self.truth_before, self.truth_after)
+                if (snapshot_row := source["processes"].get(pid)) is not None
+            ]
+            if not candidates:
                 continue
             verified += 1
-            self.assertEqual(row["startTime"], stat["startTime"])
-            self.assertEqual(row["ppid"], stat["ppid"])
-            self.assertEqual(row["name"], stat["name"])
-            self.assertEqual(row["uid"], int(status["Uid"].split()[0]))
-            self.assertEqual(row["gid"], int(status["Gid"].split()[0]))
-            self.assertEqual(row["threads"], int(status["Threads"]))
+            stats = [candidate["stat"] for candidate in candidates]
+            statuses = [candidate["status"] for candidate in candidates]
+            self.assertIn(row["startTime"], {stat["startTime"] for stat in stats})
+            self.assertIn(row["ppid"], {stat["ppid"] for stat in stats})
+            self.assertIn(row["name"], {status["Name"] for status in statuses})
+            # Process state can change between adjacent procfs reads, so only
+            # validate the kernel state code instead of requiring a stale match.
+            self.assertRegex(str(row["state"]), r"^[RSDTtZXIP]$")
+            self.assertIn(
+                row["uid"], {int(status["Uid"].split()[0]) for status in statuses}
+            )
+            self.assertEqual(row["user"], pwd.getpwuid(row["uid"]).pw_name)
+            self.assertIn(
+                row["gid"], {int(status["Gid"].split()[0]) for status in statuses}
+            )
+            self.assertIn(
+                row["threads"], {int(status["Threads"]) for status in statuses}
+            )
+            memory_values = [int(stat["rssBytes"]) for stat in stats]
+            self.assertGreaterEqual(
+                int(row["memoryBytes"]), min(memory_values) - 4 * 1024 * 1024
+            )
+            self.assertLessEqual(
+                int(row["memoryBytes"]), max(memory_values) + 4 * 1024 * 1024
+            )
+            self.assertIn(
+                row["command"], [candidate["command"] for candidate in candidates]
+            )
+            self.assertIn(
+                row["executable"],
+                {candidate["executable"] for candidate in candidates},
+            )
+            self.assertIn(row["cwd"], {candidate["cwd"] for candidate in candidates})
+            if row["cpuPercent"] is not None:
+                self.assertGreaterEqual(float(row["cpuPercent"]), 0)
+                self.assertLessEqual(float(row["cpuPercent"]), 100)
+            for key in ("readBytesPerSecond", "writeBytesPerSecond"):
+                if row[key] is not None:
+                    self.assertGreaterEqual(float(row[key]), 0)
             self.assertTrue(all("=" not in name for name in row["environmentNames"]))
         self.assertGreaterEqual(verified, max(1, int(len(rows) * 0.9)))
+        uptime = float(Path("/proc/uptime").read_text().split()[0])
+        expected_uptime = max(
+            0,
+            round(uptime - int(rows[0]["startTime"]) / os.sysconf("SC_CLK_TCK")),
+        )
+        self.assertLessEqual(abs(int(metrics["uptimeSeconds"]) - expected_uptime), 2)
         return pids
 
     def _assert_connections(self, snapshot: dict[str, object], pids: list[int]) -> None:

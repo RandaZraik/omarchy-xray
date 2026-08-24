@@ -3,6 +3,7 @@ import "../../ui/DeviceSummary.js" as DeviceSummary
 import "../../ui/TargetSearch.js" as TargetSearch
 import "../../ui/DetailDomains.js" as DetailDomains
 import "../../ui/Format.js" as Format
+import "../../ui/ProcessEvidence.js" as ProcessEvidence
 
 QtObject {
     Component.onCompleted: {
@@ -97,6 +98,20 @@ QtObject {
             detailCounts[domain] = DetailDomains.count(domain, snapshot)
             detailRowCounts[domain] = DetailDomains.rows(domain, snapshot).length
         })
+        var processEvidenceRows = [
+            {"pid": 10, "name": "root", "user": "demo-user", "uid": 1000,
+             "state": "S", "depth": 0, "threads": 3, "memoryBytes": 2048,
+             "cpuPercent": 2, "readBytesPerSecond": 10,
+             "writeBytesPerSecond": 20, "command": ["root", "--safe"]},
+            {"pid": 11, "name": "worker", "user": "demo-user", "uid": 1000,
+             "state": "R", "depth": 1, "threads": 5, "memoryBytes": 4096,
+             "cpuPercent": 12, "readBytesPerSecond": 40,
+             "writeBytesPerSecond": 80, "command": ["worker", "--serve"]},
+            {"pid": 12, "name": "idle", "uid": 4242, "state": "I", "depth": 1,
+             "threads": 1, "memoryBytes": 1024, "cpuPercent": null,
+             "readBytesPerSecond": null, "writeBytesPerSecond": null,
+             "command": []}
+        ]
         console.log("XRAY_QML " + JSON.stringify({
             "empty": empty,
             "active": active,
@@ -132,10 +147,71 @@ QtObject {
             "ownerMatches": TargetSearch.ownerMatches(snapshot.target),
             "ipv4Endpoint": Format.addressPort("127.0.0.1", 443),
             "ipv6Endpoint": Format.addressPort("2001:db8::1", 443),
+            "defaultMemory": Format.bytes(651788288),
             "detailCounts": detailCounts,
             "detailRowCounts": detailRowCounts,
             "runtimeRows": DetailDomains.rows(DetailDomains.Runtime, snapshot),
-            "explanationRows": DetailDomains.rows(DetailDomains.Explanations, snapshot)
+            "explanationRows": DetailDomains.rows(DetailDomains.Explanations, snapshot),
+            "processUserFilter": ProcessEvidence.filter(
+                processEvidenceRows, "demo-user"
+            ).map(function(row) { return row.pid }),
+            "processPidFilter": ProcessEvidence.filter(
+                processEvidenceRows, "11"
+            ).map(function(row) { return row.pid }),
+            "processNameFilter": ProcessEvidence.filter(
+                processEvidenceRows, "WORKER"
+            ).map(function(row) { return row.pid }),
+            "processCommandFilter": ProcessEvidence.filter(
+                processEvidenceRows, "--serve"
+            ).map(function(row) { return row.pid }),
+            "processFallbackUidFilter": ProcessEvidence.filter(
+                processEvidenceRows, "4242"
+            ).map(function(row) { return row.pid }),
+            "processNonBtopFieldFilter": ProcessEvidence.filter(
+                processEvidenceRows, "running"
+            ).map(function(row) { return row.pid }),
+            "processCpuSort": ProcessEvidence.sort(
+                processEvidenceRows, "cpu", true
+            ).map(function(row) { return row.pid }),
+            "processCommandSort": ProcessEvidence.sort(
+                processEvidenceRows, "command", false
+            ).map(function(row) { return row.pid }),
+            "processTreeOrder": ProcessEvidence.sort(
+                processEvidenceRows, "tree", false
+            ).map(function(row) { return row.pid }),
+            "processSummary": ProcessEvidence.summary(processEvidenceRows),
+            "processFallbackUser": ProcessEvidence.user(processEvidenceRows[2]),
+            "processState": ProcessEvidence.state(processEvidenceRows[1]),
+            "processCommand": ProcessEvidence.command(processEvidenceRows[0]),
+            "processConciseCommand": ProcessEvidence.conciseCommand({
+                "command": [
+                    "/workspace/.venv/bin/python3",
+                    "/workspace/.venv/bin/adw",
+                    "dashboard", "--port", "9000"
+                ]
+            }),
+            "processCommandLauncher": ProcessEvidence.commandLauncher({
+                "command": [
+                    "/workspace/.venv/bin/python3",
+                    "/workspace/.venv/bin/adw",
+                    "dashboard", "--port", "9000"
+                ]
+            }),
+            "embeddedArgvConciseCommand": ProcessEvidence.conciseCommand({
+                "command": [
+                    "/usr/lib/chromium/chromium --load-extension=/usr/share/omarchy/extensions/whatsapp-slim --oauth2-client-id=demo"
+                ]
+            }),
+            "variantStyleProcessCommand": ProcessEvidence.command({
+                "command": {
+                    "0": "/workspace/.venv/bin/python3",
+                    "1": "/workspace/.venv/bin/adw",
+                    "2": "dashboard",
+                    "3": "--port",
+                    "4": "9000",
+                    "length": 5
+                }
+            })
         }))
         Qt.quit()
     }

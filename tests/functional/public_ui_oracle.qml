@@ -6,7 +6,10 @@ ShellRoot {
     id: root
 
     property int stage: 0
-    property double deadline: Date.now() + 45000
+    // This exercises every live drawer plus process actions and capsule I/O.
+    // Leave headroom for loaded desktop machines; stage assertions still fail
+    // immediately when behavior is wrong.
+    property double deadline: Date.now() + 75000
     property string query: ""
     property string expectedPath: ""
     property int expectedPid: 0
@@ -163,20 +166,27 @@ ShellRoot {
         running: true
         onTriggered: {
             if (Date.now() > root.deadline) {
-                if (root.stage === 1 || root.stage === 2) {
-                    console.log("XRAY_PUBLIC_UI_STATE " + JSON.stringify({
-                        "stage": root.stage,
-                        "controller": !!root.controller,
-                        "busy": root.controller ? root.controller.busy : null,
-                        "capturingPreview": root.controller ? root.controller.capturingPreview : null,
-                        "notice": root.controller ? root.controller.notice : "",
-                        "target": root.controller ? (root.controller.snapshot.target || {}) : {},
-                        "catalogRequested": root.controller ? root.controller.catalogRequested : null,
-                        "browserVisible": root.browser ? root.browser.visible : null,
-                        "catalogProcesses": root.controller
-                            ? (root.controller.catalog.processes || []).length : null
-                    }))
-                }
+                console.log("XRAY_PUBLIC_UI_STATE " + JSON.stringify({
+                    "stage": root.stage,
+                    "drilldownIndex": root.drilldownIndex,
+                    "drilldown": root.drilldowns[root.drilldownIndex] || {},
+                    "controller": !!root.controller,
+                    "drawer": root.controller ? root.controller.drawer : null,
+                    "detailDomain": root.controller ? root.controller.detailDomain : null,
+                    "busy": root.controller ? root.controller.busy : null,
+                    "refreshInFlight": root.controller
+                        ? root.controller.refreshInFlight : null,
+                    "capturingPreview": root.controller
+                        ? root.controller.capturingPreview : null,
+                    "notice": root.controller ? root.controller.notice : "",
+                    "target": root.controller
+                        ? (root.controller.snapshot.target || {}) : {},
+                    "catalogRequested": root.controller
+                        ? root.controller.catalogRequested : null,
+                    "browserVisible": root.browser ? root.browser.visible : null,
+                    "catalogProcesses": root.controller
+                        ? (root.controller.catalog.processes || []).length : null
+                }))
                 root.require(false, "public UI oracle timed out at stage " + root.stage)
             }
 
@@ -358,6 +368,22 @@ ShellRoot {
                 if (root.controller.busy || root.controller.drawer) return
                 var spec = root.drilldowns[root.drilldownIndex]
                 var card = root.named(spec.card)
+                if (!card || !card.interactive)
+                    console.log("XRAY_DRILLDOWN_STATE " + JSON.stringify({
+                        "index": root.drilldownIndex,
+                        "spec": spec,
+                        "cardFound": !!card,
+                        "cardInteractive": card ? card.interactive : null,
+                        "cardDetailsCount": card ? card.detailsCount : null,
+                        "busy": root.controller.busy,
+                        "refreshInFlight": root.controller.refreshInFlight,
+                        "snapshotKeys": Object.keys(root.controller.snapshot || {}),
+                        "snapshotProcessPids": (
+                            root.controller.snapshot.processes || []
+                        ).map(function(row) { return Number(row.pid) }),
+                        "snapshotExplanations":
+                            root.controller.snapshot.explanations || []
+                    }))
                 root.require(card && card.interactive,
                     "production card is not drillable: " + spec.card)
                 card.clicked()
@@ -375,10 +401,74 @@ ShellRoot {
                     spec.card + " opened the wrong production drilldown")
                 root.require(root.detailDrawer.allRows.length === Number(card.detailsCount),
                     spec.card + " drilldown disagrees with its card count")
-                if (spec.domain === "processes")
-                    root.require(root.detailDrawer.allRows.some(function(row) {
-                        return Number(row.pid) === root.expectedChildPid
-                    }), "process drilldown omits the independently known child")
+                if (spec.domain === "processes") {
+                    var processDrawerHasChild = root.detailDrawer.allRows.some(
+                        function(row) {
+                            return Number(row.pid) === root.expectedChildPid
+                        }
+                    )
+                    if (!processDrawerHasChild)
+                        console.log("XRAY_PROCESS_DRAWER_STATE " + JSON.stringify({
+                            "expectedChildPid": root.expectedChildPid,
+                            "drawerPids": root.detailDrawer.allRows.map(
+                                function(row) { return Number(row.pid) }
+                            ),
+                            "detailSnapshotPids": (
+                                root.controller.detailSnapshot.processes || []
+                            ).map(function(row) { return Number(row.pid) }),
+                            "liveSnapshotPids": (
+                                root.controller.snapshot.processes || []
+                            ).map(function(row) { return Number(row.pid) }),
+                            "target": root.controller.snapshot.target || {},
+                            "coverage": root.controller.snapshot.coverage || {}
+                        }))
+                    root.require(processDrawerHasChild,
+                        "process drilldown omits the independently known child")
+                    var processTable = root.named("xrayProcessEvidenceTable")
+                    root.require(processTable
+                            && processTable.rows.length === root.detailDrawer.allRows.length,
+                        "process evidence table does not expose the complete tree")
+                    root.require(
+                        processTable.theme.processEvidenceValueFontSize
+                            >= processTable.theme.summaryFontSize
+                            && processTable.theme.processEvidenceSecondaryFontSize
+                                >= processTable.theme.labelFontSize
+                            && processTable.theme.processEvidenceRowHeight
+                                >= processTable.theme.processEvidenceValueFontSize * 4.5,
+                        "process evidence table regressed below its readable data density")
+                    root.require(processTable.selectedCommand.indexOf("truth_fixture.py") >= 0,
+                        "selected process command fell back to the executable path")
+                    var processText = root.textDump(processTable)
+                    ;["PROCESS / COMMAND", "PID", "USER", "THREADS",
+                      "CPU", "MEMORY", "READ / WRITE"]
+                        .forEach(function(label) {
+                            root.require(processText.indexOf(label) >= 0,
+                                "process evidence table is missing " + label)
+                        })
+                    root.detailDrawer.filterText = String(root.expectedPid)
+                    root.require(processTable.rows.some(function(row) {
+                        return Number(row.pid) === root.expectedPid
+                    }), "process evidence filter hid its exact PID match")
+                    root.detailDrawer.filterText = ""
+                    processTable.chooseSort("cpu")
+                    root.require(processTable.sortKey === "cpu" && processTable.descending,
+                        "process evidence CPU sort did not start descending")
+                    processTable.chooseSort("cpu")
+                    root.require(!processTable.descending,
+                        "process evidence CPU sort did not reverse")
+                    processTable.chooseSort("tree")
+                    var screenshotPath = Quickshell.env("XRAY_UI_SCREENSHOT")
+                    if (screenshotPath && root.events.screenshotCaptured !== true) {
+                        if (root.events.screenshotPending === true) return
+                        root.record("screenshotPending", true)
+                        root.detailDrawer.grabToImage(function(result) {
+                            root.require(result && result.saveToFile(screenshotPath),
+                                "process evidence screenshot could not be saved")
+                            root.record("screenshotCaptured", true)
+                        })
+                        return
+                    }
+                }
                 if (spec.domain === "connections")
                     root.require(root.detailDrawer.allRows.some(function(row) {
                         return String(row.title).indexOf(String(root.expectedPort)) >= 0

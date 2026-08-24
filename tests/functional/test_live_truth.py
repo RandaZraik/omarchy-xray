@@ -4,6 +4,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import pwd
 import socket
 import subprocess
 import sys
@@ -344,12 +345,15 @@ class LiveTruthTests(unittest.TestCase):
         }
         root = next(row for row in snapshot["processes"] if row["pid"] == pid)
         self.assertEqual(root["uid"], int(status["Uid"].split()[0]))
+        self.assertEqual(root["user"], pwd.getpwuid(root["uid"]).pw_name)
         self.assertEqual(root["gid"], int(status["Gid"].split()[0]))
         self.assertEqual(root["threads"], int(status["Threads"]))
-        expected_memory = int(status["VmRSS"].split()[0]) * 1024
-        self.assertLessEqual(
-            abs(root["memoryBytes"] - expected_memory), 4 * 1024 * 1024
-        )
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        rss_before = int(stat_before.rsplit(")", 1)[1].split()[21]) * page_size
+        rss_after = int(stat_after.rsplit(")", 1)[1].split()[21]) * page_size
+        self.assertEqual(root["memoryBytes"] % page_size, 0)
+        self.assertGreaterEqual(root["memoryBytes"], min(rss_before, rss_after))
+        self.assertLessEqual(root["memoryBytes"], max(rss_before, rss_after))
 
         metrics = snapshot["metrics"]
         self.assertEqual(metrics["processCount"], len(snapshot["processes"]))
@@ -363,8 +367,8 @@ class LiveTruthTests(unittest.TestCase):
         self.assertGreaterEqual(metrics["cpuPercent"], 0)
         self.assertGreaterEqual(metrics["readBytesPerSecond"], 0)
         self.assertGreater(metrics["writeBytesPerSecond"], 0)
-        cpu_before = sum(map(int, stat_before.rsplit(")", 1)[1].split()[11:15]))
-        cpu_after = sum(map(int, stat_after.rsplit(")", 1)[1].split()[11:15]))
+        cpu_before = sum(map(int, stat_before.rsplit(")", 1)[1].split()[11:13]))
+        cpu_after = sum(map(int, stat_after.rsplit(")", 1)[1].split()[11:13]))
         self.assertGreater(cpu_after, cpu_before)
         self.assertGreater(root["cpuPercent"], 0)
         self.assertGreater(metrics["cpuPercent"], 0)
@@ -399,8 +403,17 @@ class LiveTruthTests(unittest.TestCase):
                 self.assertEqual(value, os.readlink(f"/proc/{pid}/ns/{name}"))
 
     def test_04_port_file_and_application_queries_resolve_the_same_truth(self) -> None:
+        with socket.create_connection(
+            ("127.0.0.1", int(self.truth["port"])), timeout=2.0
+        ):
+            snapshot = self.require_ok(
+                self.backend.request("inspect", query=f":{self.truth['port']}")
+            )
+            self.assertEqual(snapshot["target"]["kind"], "port")
+            self.assertEqual(snapshot["target"]["ownerPid"], self.truth["pid"])
+            self.assertEqual(snapshot["target"]["rootPid"], self.truth["pid"])
+
         queries = (
-            (f":{self.truth['port']}", "port"),
             (f"file:{self.locked_path}", "file"),
             ("xray-truth", "application"),
         )

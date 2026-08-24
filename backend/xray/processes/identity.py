@@ -33,7 +33,7 @@ def parse_stat(text: str) -> dict[str, int | str]:
     pid = int(text[:left].strip())
     comm = text[left + 1 : right]
     fields = text[right + 2 :].split()
-    if len(fields) < 20:
+    if len(fields) < 22:
         raise ValueError("incomplete process stat")
     return {
         "pid": pid,
@@ -44,6 +44,7 @@ def parse_stat(text: str) -> dict[str, int | str]:
         "stime": int(fields[12]),
         "threads": int(fields[17]),
         "start_time": int(fields[19]),
+        "rss_pages": int(fields[21]),
     }
 
 

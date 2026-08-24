@@ -37,6 +37,10 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
 ## Features
 
 - Finds the exact process tree behind the selected target.
+- Opens the tree as a searchable evidence table with full redacted commands,
+  PID, user, state, threads, memory, total-capacity CPU, and disk read/write rates.
+  Keep lineage order or sort and reverse by CPU, memory, disk activity, and
+  individual columns.
 - Keeps open apps, processes, ports, and system targets in a searchable side
   browser, so you can inspect several matches without rebuilding the search.
 - Shows how it started through sessions, shells, systemd units,

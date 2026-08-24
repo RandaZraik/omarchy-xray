@@ -107,6 +107,64 @@ class NetworkTests(unittest.TestCase):
         self.assertEqual(owners, [20])
         self.assertEqual(limited, [])
 
+    def test_port_owner_lookup_prefers_listener_over_connected_client(self) -> None:
+        rows = [
+            {
+                "localPort": 41000,
+                "remotePort": 9000,
+                "listening": False,
+                "pids": [10],
+            },
+            {
+                "localPort": 9000,
+                "remotePort": 0,
+                "listening": True,
+                "pids": [30],
+            },
+            {
+                "localPort": 9000,
+                "remotePort": 41000,
+                "listening": False,
+                "pids": [30],
+            },
+        ]
+        with patch("xray.network.sockets.owned_socket_rows", return_value=(rows, [])):
+            owners, limited = owners_for_port(
+                ProcFs(Path("/missing")), 9000, pids=[10, 30]
+            )
+
+        self.assertEqual(owners, [30, 10])
+        self.assertEqual(limited, [])
+
+    def test_port_owner_lookup_ranks_shared_listeners_server_and_client(self) -> None:
+        rows = [
+            {
+                "localPort": 41000,
+                "remotePort": 9000,
+                "listening": False,
+                "pids": [10],
+            },
+            {
+                "localPort": 9000,
+                "remotePort": 41000,
+                "listening": False,
+                "pids": [20],
+            },
+            {
+                "localPort": 9000,
+                "remotePort": 0,
+                "listening": True,
+                "pids": [40, 30],
+            },
+        ]
+        with patch("xray.network.sockets.owned_socket_rows", return_value=(rows, [])):
+            owners, limited = owners_for_port(
+                ProcFs(Path("/missing")), 9000, pids=[10, 20, 30, 40]
+            )
+
+        self.assertEqual(owners, [30, 40, 20, 10])
+        self.assertEqual(limited, [])
+
     def test_missing_process_network_namespace_is_named_as_the_limitation(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

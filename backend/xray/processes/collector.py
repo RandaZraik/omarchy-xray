@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from functools import lru_cache
+import os
+import pwd
 import time
 
 from xray.config import LIMITS, TIMING
 from xray.evidence.redaction import redact_command
 from xray.processes.identity import ProcessIdentity, identity_for, parse_stat
 from xray.system.procfs import ProcFs, first_int, parse_key_values
+
+
+_PAGE_SIZE = max(1, os.sysconf("SC_PAGE_SIZE"))
 
 
 @dataclass(frozen=True)
@@ -54,6 +60,16 @@ class ProcessMetadataCache:
             for identity, row in self._rows.items()
             if identity in identities
         }
+
+
+@lru_cache(maxsize=128)
+def user_name(uid: int) -> str:
+    if uid < 0:
+        return "unknown"
+    try:
+        return pwd.getpwuid(uid).pw_name
+    except (KeyError, OSError):
+        return str(uid)
 
 
 def _command_line(proc: ProcFs, pid: int, fallback: str) -> tuple[list[str], str]:
@@ -132,6 +148,7 @@ def collect_process(
     )
     metadata_limited = list(static.get("_metadataLimited", []))
     static.pop("_metadataLimited", None)
+    uid = first_int(values.get("Uid", ""), -1)
     row = {
         "id": f"{pid}:{stat['start_time']}",
         "pid": pid,
@@ -139,10 +156,12 @@ def collect_process(
         "startTime": int(stat["start_time"]),
         "name": values.get("Name", str(stat["comm"])),
         "state": str(stat["state"]),
-        "uid": first_int(values.get("Uid", ""), -1),
+        "uid": uid,
+        "user": user_name(uid),
         "gid": first_int(values.get("Gid", ""), -1),
         "threads": first_int(values.get("Threads", ""), int(stat["threads"])),
-        "memoryBytes": first_int(values.get("VmRSS", "")) * 1024,
+        # btop's process list reads resident memory from stat field 24.
+        "memoryBytes": max(0, int(stat["rss_pages"])) * _PAGE_SIZE,
         "cpuTicks": int(stat["utime"]) + int(stat["stime"]),
         **static,
     }

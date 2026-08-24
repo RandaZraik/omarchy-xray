@@ -438,8 +438,8 @@ ShellRoot {
                 overflowDrawer.snapshot = {"processes": overflowRows}
                 overflowDrawer.visible = true
                 var scrollView = root.descendants(overflowDrawer).find(function(item) {
-                    return item && item.contentHeight !== undefined
-                        && item.contentY !== undefined && item.height > 0
+                    return item && item.objectName === "xrayProcessEvidenceRows"
+                        && item.height > 0
                 })
                 root.require(scrollView && scrollView.contentHeight > scrollView.height,
                     "overflow drilldown did not expose real scrolling")

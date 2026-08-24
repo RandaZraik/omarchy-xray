@@ -1,7 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import patch
 
 from xray.processes.activity import ActivitySampler, total_cpu_ticks
 from xray.system.procfs import ProcFs
@@ -13,10 +12,7 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual(total_cpu_ticks("cpu 1 2 3 4 5 6 7 8 100 200\n"), 36)
 
     def test_rates_require_a_previous_sample_and_use_process_identity(self) -> None:
-        with (
-            TemporaryDirectory() as directory,
-            patch("xray.processes.activity.os.cpu_count", return_value=4),
-        ):
+        with TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "7").mkdir()
             (root / "7/io").write_text(
@@ -44,7 +40,9 @@ class ActivityTests(unittest.TestCase):
         self.assertIsNone(first["cpuPercent"])
         self.assertEqual(first["cpuStatus"], "baseline")
         self.assertIsNone(first["readBytesPerSecond"])
-        self.assertEqual(second["cpuPercent"], 40.0)
+        # Ten process ticks out of 100 machine ticks is 10% of total machine
+        # capacity, matching btop with proc_per_core disabled.
+        self.assertEqual(second["cpuPercent"], 10.0)
         self.assertEqual(second["readBytesPerSecond"], 100)
         self.assertEqual(second["writeBytesPerSecond"], 150)
 

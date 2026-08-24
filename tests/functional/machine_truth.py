@@ -58,7 +58,8 @@ def proc_stat(pid: int) -> dict[str, object]:
         "state": fields[0],
         "ppid": int(fields[1]),
         "startTime": int(fields[19]),
-        "cpuTicks": sum(int(value) for value in fields[11:15]),
+        "cpuTicks": sum(int(value) for value in fields[11:13]),
+        "rssBytes": int(fields[21]) * os.sysconf("SC_PAGE_SIZE"),
     }
 
 

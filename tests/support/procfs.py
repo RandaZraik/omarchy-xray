@@ -10,13 +10,14 @@ def stat_line(
     start: int,
     *,
     ticks: int = 1,
+    rss_pages: int = 0,
 ) -> str:
     fields = (
         ["S", str(ppid)]
         + ["0"] * 9
         + [str(ticks), "0"]
         + ["0"] * 4
-        + ["1", "0", str(start)]
+        + ["1", "0", str(start), "0", str(rss_pages)]
     )
     return f"{pid} ({name}) " + " ".join(fields) + "\n"
 
@@ -31,6 +32,7 @@ def write_process(
     uid: int = 1000,
     gid: int = 1000,
     ticks: int = 1,
+    rss_pages: int = 0,
     command: bytes | None = None,
     environ: bytes | None = None,
     cgroup: str | None = None,
@@ -41,7 +43,8 @@ def write_process(
     process = root / str(pid)
     process.mkdir(exist_ok=True)
     (process / "stat").write_text(
-        stat_line(pid, name, ppid, start, ticks=ticks), encoding="utf-8"
+        stat_line(pid, name, ppid, start, ticks=ticks, rss_pages=rss_pages),
+        encoding="utf-8",
     )
     status = [
         f"Name:\t{name}",

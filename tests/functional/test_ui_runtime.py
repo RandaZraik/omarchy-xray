@@ -176,7 +176,7 @@ class UiRuntimeTests(unittest.TestCase):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=55,
+                timeout=85,
                 check=False,
                 env={
                     **os.environ,
