@@ -12,7 +12,7 @@ Card {
     signal detailsRequested()
     title: DetailDomains.title(DetailDomains.Connections)
     accentColor: theme.networkAccent
-    countText: rows.length + " SOCKETS"
+    countText: rows.length + " IP SOCKETS"
     detailsCount: DetailDomains.count(DetailDomains.Connections, snapshot)
     interactive: true
     onClicked: detailsRequested()

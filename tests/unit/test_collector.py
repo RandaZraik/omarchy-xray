@@ -58,6 +58,43 @@ class SnapshotCollectorTests(unittest.TestCase):
             {name: "unavailable" for name in COVERAGE_DOMAINS},
         )
 
+    def test_semantic_targets_keep_the_resource_name_in_the_identity_bar(self) -> None:
+        service = ResolvedTarget(
+            TargetSpec("service", "user:demo.service", "User service demo.service"),
+            41,
+            41,
+            {},
+            [],
+            [],
+            {},
+        )
+        container = ResolvedTarget(
+            TargetSpec("container", "docker:abc", "Docker container abc"),
+            42,
+            42,
+            {},
+            [],
+            [],
+            {},
+        )
+
+        self.assertEqual(
+            SnapshotCollector._target_label(
+                service,
+                {"service": {"id": "demo.service"}},
+                {"name": "bash"},
+            ),
+            "demo.service",
+        )
+        self.assertEqual(
+            SnapshotCollector._target_label(
+                container,
+                {"container": {"name": "database", "shortId": "abc"}},
+                {"name": "tini"},
+            ),
+            "database",
+        )
+
     def test_unavailable_or_invalid_uptime_is_unknown_and_explained(self) -> None:
         collector = self.collector()
 

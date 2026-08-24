@@ -288,10 +288,59 @@ ShellRoot {
                     root.require(card && root.insideViewport(card),
                         name + " escaped the responsive viewport")
                 })
+                var liveSnapshot = controller.snapshot || {}
+                var processCard = root.find(window.contentItem, "objectName", "xrayProcessCard")
+                var connectionCard = root.find(window.contentItem, "objectName", "xrayConnectionsCard")
+                var fileCard = root.find(window.contentItem, "objectName", "xrayFilesCard")
+                var runtimeCard = root.find(window.contentItem, "objectName", "xrayRuntimeCard")
+                var causeCard = root.find(window.contentItem, "objectName", "xrayCauseCard")
+                var findingCard = root.find(window.contentItem, "objectName", "xrayExplanationsCard")
+                var identityCard = root.find(window.contentItem, "objectName", "xrayIdentityCard")
+                var processRows = liveSnapshot.processes || []
+                var threadTotal = processRows.reduce(function(total, row) {
+                    return total + Number(row.threads || 0)
+                }, 0)
+                root.require(processCard.eyebrow === processRows.length + " proc / "
+                        + threadTotal + " thr",
+                    "process card header disagrees with its rows")
+                root.require(connectionCard.countText
+                        === (liveSnapshot.connections || []).length + " IP SOCKETS",
+                    "connection card header disagrees with its rows")
+                root.require(fileCard.countText === (liveSnapshot.files || []).length
+                        + " DESCRIPTORS · " + (liveSnapshot.locks || []).length + " LOCKS",
+                    "files card header disagrees with descriptors and locks")
+                var seccomp = String((liveSnapshot.security || {}).seccomp || "")
+                root.require(runtimeCard.countText === (seccomp && seccomp !== "Unknown"
+                        ? "SECCOMP " + seccomp.toUpperCase() : ""),
+                    "runtime card header disagrees with seccomp evidence")
+                root.require(causeCard.countText === String(
+                        (((liveSnapshot.context || {}).cause || {}).status
+                            || "UNAVAILABLE")).toUpperCase(),
+                    "launch card header disagrees with cause evidence")
+                root.require(findingCard.countText
+                        === (liveSnapshot.timeline || []).length + " CHANGES",
+                    "findings card header disagrees with its timeline")
+                root.require(identityCard.countText === "PID "
+                        + String((liveSnapshot.target || {}).rootPid),
+                    "selected-target card shows the wrong PID")
+                var changed = 0
+                var changedDomains = (liveSnapshot.changes || {}).domains || {}
+                Object.keys(changedDomains).forEach(function(name) {
+                    var domainChange = changedDomains[name] || {}
+                    changed += Number(domainChange.added || 0)
+                        + Number(domainChange.removed || 0)
+                })
+                root.require(footer.changeCount() === changed,
+                    "footer change total disagrees with domain changes")
                 var identityRail = root.find(
                     window.contentItem, "objectName", "xrayIdentityRail"
                 )
+                root.require(identityRail.metricRows.length === 5,
+                    "identity rail metric model is incomplete")
                 ;["CPU", "MEM", "DISK I/O", "GPU", "UPTIME"].forEach(function(label) {
+                    root.require(identityRail.metricRows.some(function(row) {
+                        return row.label === label
+                    }), "identity rail metric model is missing " + label)
                     root.require(root.find(identityRail, "text", label),
                         "identity rail is missing its " + label + " readout")
                 })
@@ -496,6 +545,15 @@ ShellRoot {
                         && (index === 0
                             || Number(sample.capturedAt) >= Number(rows[index - 1].capturedAt))
                 }), "performance history timestamps are missing or unordered")
+                var trace = root.find(window.contentItem, "objectName", "xrayTelemetryTrace")
+                var traceSamples = controller.performanceSamples
+                var expectedTraceSeconds = traceSamples.length > 1
+                    ? Math.round(Math.min(60, Math.max(0,
+                        Number(traceSamples[traceSamples.length - 1].capturedAt)
+                            - Number(traceSamples[0].capturedAt)) / 1000)) : 0
+                root.require(trace && trace.sampleCount === traceSamples.length
+                        && trace.historySeconds === expectedTraceSeconds,
+                    "60-second trace labels disagree with captured timestamps")
                 controller.toggleSampling()
                 root.stage = 3
                 return

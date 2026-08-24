@@ -1,24 +1,15 @@
 import QtQuick
 import "../controls"
 import "../DetailDomains.js" as DetailDomains
+import "../domains/RuntimeRows.js" as RuntimeRows
 
 Card {
     id: root
     objectName: "xrayRuntimeCard"
 
     property var snapshot: ({})
-    readonly property var context: snapshot.context || {}
     readonly property var security: snapshot.security || {}
-    readonly property var service: context.service || {}
-    readonly property var container: context.container || {}
-    readonly property var rows: [
-        {"title": "Service", "subtitle": service.id || "No managing service found"},
-        {"title": "Container", "subtitle": container.name || "No container found"},
-        {"title": "Identity", "subtitle": security.statusAvailable === true ? "UID " + security.uid + " · GID " + security.gid : "Unavailable"},
-        {"title": "Isolation", "subtitle": Object.keys(security.namespaces || {}).length + " namespaces · seccomp " + (security.seccomp || "unknown")},
-        {"title": "Capabilities", "subtitle": security.capabilitiesKnown === true ? ((security.capabilities || []).join(", ") || "No effective capabilities") : "Unknown"},
-        {"title": "Control group", "subtitle": context.launch && context.launch.unit ? context.launch.unit : "No user unit identified"}
-    ]
+    readonly property var rows: RuntimeRows.cardRows(snapshot)
     signal detailsRequested()
     title: DetailDomains.title(DetailDomains.Runtime)
     accentColor: theme.runtimeAccent

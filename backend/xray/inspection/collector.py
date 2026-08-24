@@ -306,6 +306,22 @@ class SnapshotCollector:
         context: dict[str, object],
         root: dict[str, object],
     ) -> str:
+        if resolved.spec.kind == "service":
+            service = (
+                context.get("service")
+                if isinstance(context.get("service"), dict)
+                else {}
+            )
+            return str(service.get("id") or resolved.spec.label)
+        if resolved.spec.kind == "container":
+            container = (
+                context.get("container")
+                if isinstance(context.get("container"), dict)
+                else {}
+            )
+            return str(
+                container.get("name") or container.get("shortId") or resolved.spec.label
+            )
         window = (
             context.get("window") if isinstance(context.get("window"), dict) else {}
         )

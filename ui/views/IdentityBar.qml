@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import "../controls"
 import "../Format.js" as Format
+import "../domains/MetricRows.js" as MetricRows
 
 Rectangle {
     id: root
@@ -17,6 +18,7 @@ Rectangle {
 
     readonly property var target: snapshot.target || ({})
     readonly property var metrics: snapshot.metrics || ({})
+    readonly property var metricRows: MetricRows.rows(snapshot, theme)
     readonly property var rows: snapshot.processes || []
     readonly property var selectedRow: rows.find(function(row) {
         return Number(row.pid) === Number(root.target.ownerPid || 0)
@@ -284,13 +286,7 @@ Rectangle {
         }
 
         Repeater {
-            model: [
-                {"label": "CPU", "value": Format.percent(root.metrics.cpuPercent), "detail": root.metrics.cpuStatus === "baseline" ? "baseline" : "process share", "accent": root.theme.cpuAccent},
-                {"label": "MEM", "value": Format.bytes(root.metrics.memoryBytes), "detail": String(root.metrics.threads || 0) + " threads", "accent": root.theme.memoryAccent},
-                {"label": "DISK I/O", "value": root.metrics.ioAvailable === false ? "—" : Format.rate(Number(root.metrics.readBytesPerSecond || 0) + Number(root.metrics.writeBytesPerSecond || 0)), "detail": "read + write", "accent": root.theme.storageAccent},
-                {"label": "GPU", "value": Format.percent(root.metrics.gpuPercent), "detail": ((root.snapshot.devices || {}).gpu || []).length + " clients", "accent": root.theme.deviceAccent},
-                {"label": "UPTIME", "value": Format.duration(root.metrics.uptimeSeconds), "detail": root.snapshot.samplingPaused ? "paused" : "live", "accent": root.theme.runtimeAccent}
-            ]
+            model: root.metricRows
             delegate: Item {
                 required property int index
                 required property var modelData

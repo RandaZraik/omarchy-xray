@@ -346,12 +346,21 @@ function detail(domain, snapshot, allRows, filteredRows, filtering, processSumma
     if (domain === Explanations)
         return (snapshot.explanations || []).length + " findings  ·  "
             + (snapshot.timeline || []).length + " changes"
+    if (domain === Files) {
+        if (filtering)
+            return filteredRows.length + " of " + allRows.length + " evidence records"
+        return (snapshot.files || []).length + " descriptors  ·  "
+            + (snapshot.locks || []).length + " locks"
+    }
     var labels = {}
     labels[Connections] = "endpoints"
-    labels[Files] = "descriptor records"
     labels[Cause] = "launch steps"
     labels[Coverage] = "evidence sources"
     labels[Alternatives] = "process matches"
     var label = labels[domain] || "evidence records"
     return filteredRows.length + (filtering ? " of " + allRows.length : "") + " " + label
+}
+
+function unfilteredDetail(domain, snapshot, allRows, processSummary) {
+    return detail(domain, snapshot, allRows, allRows, false, processSummary)
 }

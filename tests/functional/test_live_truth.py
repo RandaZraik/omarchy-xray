@@ -16,10 +16,17 @@ from itertools import product
 import time
 
 from live_backend import LiveBackend, PROJECT_ROOT, wait_until
+from machine_truth import (
+    descriptor_info,
+    expected_detail_counts,
+    proc_security,
+    proc_status,
+    rendered_details,
+    system_cpu_ticks,
+)
 
 
 QML_EXECUTABLE = shutil.which("qml6") or shutil.which("qml")
-DETAIL_ORACLE = Path(__file__).with_name("live_detail_oracle.qml")
 
 
 class LiveTruthTests(unittest.TestCase):
@@ -162,104 +169,9 @@ class LiveTruthTests(unittest.TestCase):
     @unittest.skipUnless(QML_EXECUTABLE, "requires a Qt QML runtime")
     def test_03a_every_live_card_drilldown_preserves_backend_truth(self) -> None:
         snapshot = self.inspect_fixture()
-        detail_snapshot = {
-            key: snapshot[key]
-            for key in (
-                "target",
-                "processes",
-                "connections",
-                "files",
-                "locks",
-                "devices",
-                "context",
-                "security",
-                "logs",
-                "explanations",
-                "timeline",
-                "coverage",
-            )
-        }
-        completed = subprocess.run(
-            [
-                str(QML_EXECUTABLE),
-                "-platform",
-                "offscreen",
-                str(DETAIL_ORACLE),
-                "--",
-                json.dumps(detail_snapshot, separators=(",", ":")),
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=10,
-            check=False,
-            env={
-                **os.environ,
-                "QT_FORCE_STDERR_LOGGING": "1",
-                "QT_LOGGING_TO_CONSOLE": "1",
-            },
-        )
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        output = completed.stdout + "\n" + completed.stderr
-        marker = next(
-            (
-                line.partition("XRAY_LIVE_DETAILS ")[2]
-                for line in output.splitlines()
-                if "XRAY_LIVE_DETAILS " in line
-            ),
-            "",
-        )
-        self.assertTrue(marker, output)
-        rendered = json.loads(marker)
-        devices = snapshot["devices"]
-        unavailable_device_sources = sum(
-            value != "available" for value in devices.get("availability", {}).values()
-        )
-        security = snapshot["security"]
+        rendered = rendered_details(snapshot)
         context = snapshot["context"]
-        service = context.get("service", {})
-        container = context.get("container", {})
-        expected_counts = {
-            "processes": len(snapshot["processes"]),
-            "connections": len(snapshot["connections"]),
-            "files": len(snapshot["files"]) + len(snapshot["locks"]),
-            "devices": sum(
-                len(devices.get(name, ())) for name in ("pipewire", "gpu", "inhibitors")
-            )
-            + unavailable_device_sources,
-            "runtime": 5
-            + bool(security.get("apparmor"))
-            + (security.get("oomScore") is not None)
-            + bool(context.get("package", {}).get("name"))
-            + bool(context.get("git", {}).get("root"))
-            + len(security.get("namespaces", {}))
-            + len(security.get("limits", ()))
-            + len(security.get("libraries", ()))
-            + len(snapshot["logs"])
-            + (
-                2
-                + bool(service.get("fragmentPath"))
-                + len(service.get("triggeredBy", ()))
-                if service.get("id")
-                else 0
-            )
-            + (
-                2
-                + len(container.get("ports", ()))
-                + len(container.get("mounts", ()))
-                + len(container.get("networks", ()))
-                if container.get("id")
-                else 0
-            ),
-            "cause": len(context["cause"]["nodes"]),
-            "explanations": len(snapshot["explanations"])
-            + len(snapshot["timeline"]),
-            "coverage": len(snapshot["coverage"]["available"])
-            + len(snapshot["coverage"]["limited"]),
-            "alternatives": len(snapshot["target"]["alternatives"]),
-        }
+        expected_counts = expected_detail_counts(snapshot)
         self.assertEqual(rendered["counts"], expected_counts)
         for domain, count in expected_counts.items():
             with self.subTest(domain=domain):
@@ -301,9 +213,7 @@ class LiveTruthTests(unittest.TestCase):
                 rendered_finding["evidence"], explanation.get("evidence", [])
             )
             if explanation.get("nextStep"):
-                self.assertEqual(
-                    rendered_finding["nextStep"], explanation["nextStep"]
-                )
+                self.assertEqual(rendered_finding["nextStep"], explanation["nextStep"])
         coverage_titles = {row["title"] for row in rows["coverage"]}
         self.assertEqual(
             coverage_titles,
@@ -316,21 +226,55 @@ class LiveTruthTests(unittest.TestCase):
                 for row in rows["alternatives"]
             )
         )
+        self.assertEqual(
+            rendered["details"]["files"],
+            f"{len(snapshot['files'])} descriptors  ·  {len(snapshot['locks'])} locks",
+        )
+        self.assertEqual(
+            rendered["cards"]["processSummary"],
+            {
+                "processes": len(snapshot["processes"]),
+                "threads": sum(row["threads"] for row in snapshot["processes"]),
+                "memoryBytes": sum(row["memoryBytes"] for row in snapshot["processes"]),
+            },
+        )
+        for domain, sections in rendered["sections"].items():
+            if sections:
+                with self.subTest(section_totals=domain):
+                    self.assertEqual(
+                        sum(section["sourceCount"] for section in sections),
+                        rendered["counts"][domain],
+                    )
+        file_summary = {
+            row["label"]: row["value"] for row in rendered["summaries"]["files"]
+        }
+        self.assertEqual(file_summary["DESCRIPTORS"], str(len(snapshot["files"])))
+        self.assertEqual(file_summary["LOCKS"], str(len(snapshot["locks"])))
+        self.assertEqual(
+            file_summary["DELETED"],
+            str(sum(row["deleted"] for row in snapshot["files"])),
+        )
 
     def test_03b_performance_and_security_cards_match_procfs(self) -> None:
-        self.inspect_fixture()
+        initial = self.inspect_fixture()
         pid = int(self.truth["pid"])
+        descriptor_before = {
+            (int(row["pid"]), int(row["fd"]), str(row["target"])): descriptor_info(
+                int(row["pid"]), int(row["fd"])
+            )
+            for row in initial["files"]
+        }
         stat_before = Path(f"/proc/{pid}/stat").read_text()
         io_before = Path(f"/proc/{pid}/io").read_text()
+        total_cpu_before = system_cpu_ticks()
+        sampled_before = time.monotonic()
         time.sleep(0.35)
         snapshot = self.require_ok(self.backend.request("refresh"))
+        sampled_after = time.monotonic()
+        total_cpu_after = system_cpu_ticks()
         stat_after = Path(f"/proc/{pid}/stat").read_text()
         io_after = Path(f"/proc/{pid}/io").read_text()
-        status = {
-            key: value.strip()
-            for line in Path(f"/proc/{pid}/status").read_text().splitlines()
-            if (key := line.partition(":")[0]) and (value := line.partition(":")[2])
-        }
+        status = proc_status(pid)
         root = next(row for row in snapshot["processes"] if row["pid"] == pid)
         self.assertEqual(root["uid"], int(status["Uid"].split()[0]))
         self.assertEqual(root["user"], pwd.getpwuid(root["uid"]).pw_name)
@@ -361,6 +305,14 @@ class LiveTruthTests(unittest.TestCase):
         self.assertGreater(root["cpuPercent"], 0)
         self.assertGreater(metrics["cpuPercent"], 0)
         self.assertGreater(root["writeBytesPerSecond"], 0)
+        expected_cpu = (
+            (cpu_after - cpu_before) / max(1, total_cpu_after - total_cpu_before) * 100
+        )
+        # The independent reads bracket, rather than occur at the exact same
+        # instant as, the backend sample. One percentage point covers that
+        # unavoidable scheduling edge while still catching per-core vs total
+        # machine-capacity mistakes.
+        self.assertLessEqual(abs(root["cpuPercent"] - expected_cpu), 1.0)
         io_values_before = {
             line.partition(":")[0]: int(line.partition(":")[2])
             for line in io_before.splitlines()
@@ -372,23 +324,56 @@ class LiveTruthTests(unittest.TestCase):
         self.assertGreater(
             io_values_after["write_bytes"], io_values_before["write_bytes"]
         )
+        expected_write_rate = (
+            io_values_after["write_bytes"] - io_values_before["write_bytes"]
+        ) / (sampled_after - sampled_before)
+        self.assertLessEqual(
+            abs(root["writeBytesPerSecond"] - expected_write_rate),
+            max(16_384, expected_write_rate * 0.25),
+        )
 
         security = snapshot["security"]
-        self.assertEqual(security["uid"], int(status["Uid"].split()[0]))
-        self.assertEqual(security["gid"], int(status["Gid"].split()[0]))
-        self.assertEqual(
-            security["noNewPrivileges"],
-            status.get("NoNewPrivs") == "1" if "NoNewPrivs" in status else None,
-        )
-        self.assertEqual(
-            security["seccomp"],
-            {"0": "Disabled", "1": "Strict", "2": "Filtered"}.get(
-                status.get("Seccomp", ""), "Unknown"
-            ),
-        )
-        for name, value in security["namespaces"].items():
-            with self.subTest(namespace=name):
-                self.assertEqual(value, os.readlink(f"/proc/{pid}/ns/{name}"))
+        raw_security = proc_security(pid)
+        for key in (
+            "uid",
+            "gid",
+            "groups",
+            "noNewPrivileges",
+            "seccomp",
+            "capabilities",
+            "capabilitiesKnown",
+            "apparmor",
+            "oomScore",
+            "oomAdjustment",
+            "namespaces",
+            "limits",
+            "libraries",
+        ):
+            with self.subTest(security_field=key):
+                self.assertEqual(security[key], raw_security[key])
+
+        for row in snapshot["files"]:
+            try:
+                current_target = os.readlink(f"/proc/{row['pid']}/fd/{row['fd']}")
+            except OSError:
+                continue
+            if current_target != row["target"]:
+                continue
+            info = descriptor_info(int(row["pid"]), int(row["fd"]))
+            if info is None or "mode" not in row:
+                continue
+            identity = (int(row["pid"]), int(row["fd"]), str(row["target"]))
+            for key in ("flags", "mode", "mountId"):
+                with self.subTest(descriptor=(row["pid"], row["fd"]), field=key):
+                    self.assertEqual(row[key], info[key])
+            before = descriptor_before.get(identity)
+            if before is not None:
+                self.assertGreaterEqual(
+                    row["position"], min(before["position"], info["position"])
+                )
+                self.assertLessEqual(
+                    row["position"], max(before["position"], info["position"])
+                )
 
     def test_04_port_file_and_application_queries_resolve_the_same_truth(self) -> None:
         with socket.create_connection(
