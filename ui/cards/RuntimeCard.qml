@@ -21,7 +21,7 @@ Card {
     ]
     signal detailsRequested()
     title: DetailDomains.title(DetailDomains.Runtime)
-    accentColor: theme.memoryAccent
+    accentColor: theme.runtimeAccent
     countText: security.seccomp && security.seccomp !== "Unknown" ? "SECCOMP " + String(security.seccomp).toUpperCase() : ""
     detailsCount: DetailDomains.count(DetailDomains.Runtime, snapshot)
     interactive: true
@@ -33,11 +33,13 @@ Card {
         spacing: 0
 
         Repeater {
-            model: root.rows.slice(0, Math.max(0, Math.floor(parent.height / 28)))
+            model: root.rows.slice(0, Math.max(0, Math.floor(
+                parent.height / root.theme.evidenceRowHeight
+            )))
             delegate: EvidenceTableRow {
                 required property var modelData
                 width: parent.width
-                height: 28
+                height: root.theme.evidenceRowHeight
                 theme: root.theme
                 cells: [
                     {"width": 0.34, "text": modelData.title, "color": root.theme.muted, "fontFamily": root.theme.bodyFont},

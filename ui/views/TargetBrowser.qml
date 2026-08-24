@@ -40,11 +40,27 @@ Rectangle {
     signal catalogRequested()
     signal closeRequested()
 
-    radius: theme.radius
-    color: theme.browserSurface
+    radius: theme.cardRadius
     border.color: theme.cardBorder
     border.width: theme.borderWidth
     clip: true
+
+    gradient: Gradient {
+        GradientStop { position: 0; color: root.theme.surfaceMid }
+        GradientStop { position: 1; color: root.theme.surfaceLow }
+    }
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: root.theme.telemetryRailWidth
+        anchors.topMargin: root.theme.pad
+        anchors.bottomMargin: root.theme.pad
+        radius: root.theme.pillRadius
+        color: root.theme.accent
+        opacity: 0.72
+    }
 
     function normalized(value) {
         return String(value || "").trim().toLowerCase()
@@ -217,12 +233,11 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 1
                 PlainText {
-                    text: "TARGETS"
-                    color: root.theme.sectionText
-                    font.family: root.theme.dataFont
-                    font.pixelSize: root.theme.captionFontSize
+                    text: "Targets"
+                    color: root.theme.text
+                    font.family: root.theme.bodyFont
+                    font.pixelSize: root.theme.labelFontSize
                     font.bold: true
-                    font.letterSpacing: root.theme.labelTracking
                 }
                 Row {
                     spacing: root.theme.smallGap
@@ -267,27 +282,20 @@ Rectangle {
             width: parent.width
             height: root.theme.targetBrowserSearchHeight
 
-            Ui.TextField {
+            ThemedTextField {
                 id: searchField
+                theme: root.theme
                 objectName: "xrayTargetSearchField"
                 anchors.fill: parent
                 enabled: root.interactionEnabled
-                foreground: root.theme.text
-                accent: root.theme.accent
                 placeholderTextColor: root.theme.muted
-                selectionTint: root.theme.selected
                 font.pixelSize: root.theme.bodyFontSize
                 leftPadding: searchIcon.implicitWidth + root.theme.pad
                 rightPadding: keyboardHint.implicitWidth + root.theme.pad
                 placeholderText: "App, PID, :port, service…"
-                background: Rectangle {
-                    radius: root.theme.radius
-                    color: searchField.activeFocus
-                        ? root.theme.controlFocusSurface : root.theme.previewSurface
-                    border.color: searchField.activeFocus
-                        ? root.theme.controlFocusBorder : root.theme.cardBorder
-                    border.width: root.theme.borderWidth
-                }
+                idleSurface: root.theme.previewSurface
+                focusSurface: root.theme.controlFocusSurface
+                focusBorder: root.theme.controlFocusBorder
                 onTextEdited: {
                     root.keyboardQuery = ""
                     if (root.normalized(text)
@@ -348,25 +356,32 @@ Rectangle {
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: root.theme.radius
-                        color: filterHover.hovered
-                            ? root.theme.controlHoverSurface : root.theme.transparent
+                        radius: root.theme.pillRadius
+                        color: root.activeFilter === modelData.id
+                            ? root.theme.accentSurface
+                            : filterHover.hovered
+                                ? root.theme.controlHoverSurface : root.theme.transparent
+                        border.color: root.activeFilter === modelData.id
+                            ? root.theme.accentBorder : root.theme.transparent
+                        border.width: root.theme.borderWidth
                     }
                     PlainText {
                         anchors.centerIn: parent
                         text: modelData.label
                         color: root.activeFilter === modelData.id
-                            ? root.theme.text : root.theme.muted
+                            ? root.theme.accent : root.theme.muted
                         font.family: root.theme.dataFont
                         font.pixelSize: root.theme.microFontSize
                         font.bold: root.activeFilter === modelData.id
                     }
                     Rectangle {
                         visible: root.activeFilter === modelData.id
-                        anchors.left: parent.left
-                        anchors.right: parent.right
+                        width: 4
+                        height: 4
+                        radius: root.theme.pillRadius
+                        anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.bottom
-                        height: root.theme.targetBrowserTabIndicatorHeight
+                        anchors.bottomMargin: 2
                         color: root.theme.accent
                     }
                     HoverHandler { id: filterHover }
@@ -417,7 +432,7 @@ Rectangle {
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: root.theme.radius
+                        radius: root.theme.controlRadius
                         color: sectionHover.hovered
                             ? root.theme.controlHoverSurface : root.theme.transparent
                     }

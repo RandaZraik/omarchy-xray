@@ -307,8 +307,8 @@ ShellRoot {
                     "performance history is not bound to the controller's timestamped samples")
                 root.require(Number((performanceCard.samples[0] || {}).capturedAt) > 0,
                     "performance history samples have no capture timestamp")
-                root.require(header.height === 46, "header height changed")
-                root.require(footer.height === 46, "footer height changed")
+                root.require(header.height === 54, "header height changed")
+                root.require(footer.height === 52, "footer height changed")
 
                 targetBrowser.catalog = {
                     "quickTargets": [{"label": "Microphone", "query": "microphone"}],

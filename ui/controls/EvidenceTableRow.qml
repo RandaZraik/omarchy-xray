@@ -5,15 +5,15 @@ Item {
 
     required property var theme
     property var cells: []
-    height: 29
+    height: theme.evidenceRowHeight
 
     Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: root.theme.dividerWidth
-        color: root.theme.border
-        opacity: root.theme.dividerOpacity
+        color: root.theme.cardBorder
+        opacity: root.theme.subtleDividerOpacity
     }
 
     Row {
@@ -28,6 +28,8 @@ Item {
                 color: modelData.color || root.theme.text
                 font.family: modelData.fontFamily || root.theme.dataFont
                 font.pixelSize: modelData.fontSize || root.theme.captionFontSize
+                leftPadding: root.theme.smallGap
+                rightPadding: root.theme.smallGap
                 elide: modelData.elide === undefined ? Text.ElideRight : modelData.elide
             }
         }

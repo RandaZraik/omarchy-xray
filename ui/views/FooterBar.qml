@@ -25,11 +25,21 @@ Rectangle {
         return total;
     }
 
-    height: 46
-    radius: theme.radius
-    color: theme.summarySurface
-    border.color: theme.accentBorder
+    height: 52
+    radius: theme.cardRadius
+    color: theme.surfaceLow
+    border.color: theme.cardBorder
     border.width: theme.borderWidth
+
+    AccentSignal {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: root.theme.borderWidth
+        theme: root.theme
+        radius: root.theme.cardRadius
+        fadePosition: 0.32
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -38,10 +48,19 @@ Rectangle {
         spacing: root.theme.footerSpacing
 
         Rectangle {
-            width: 7
-            height: 7
-            radius: 4
+            width: 8
+            height: 8
+            radius: root.theme.pillRadius
             color: root.offline || root.snapshot.samplingPaused ? root.theme.muted : root.theme.accent
+
+            Rectangle {
+                visible: !root.offline && !root.snapshot.samplingPaused
+                anchors.centerIn: parent
+                width: parent.width + root.theme.gap
+                height: width
+                radius: root.theme.pillRadius
+                color: root.theme.accentGlow
+            }
         }
         PlainText {
             text: root.offline ? "OFFLINE REPORT" : (root.snapshot.samplingPaused ? "PAUSED" : "LIVE")
@@ -68,6 +87,7 @@ Rectangle {
             font.pixelSize: root.theme.captionFontSize
         }
         IconButton {
+            theme: root.theme
             iconName: "baseline"
             tooltipText: "Start a new comparison baseline"
             enabled: root.actionsEnabled && !root.offline
@@ -77,13 +97,12 @@ Rectangle {
         Item { Layout.fillWidth: true }
         Repeater {
             model: root.snapshot.actions || []
-            delegate: Button {
+            delegate: ActionButton {
                 required property var modelData
+                theme: root.theme
                 text: modelData.label
                 iconText: Format.icon(modelData.icon)
                 tooltipText: modelData.label
-                bordered: true
-                focusable: true
                 enabled: root.actionsEnabled && modelData.available === true && !root.offline
                 opacity: enabled ? 1 : root.theme.disabledOpacity
                 horizontalPadding: 9

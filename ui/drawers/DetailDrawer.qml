@@ -6,10 +6,9 @@ import "../views" as Views
 import "../Format.js" as Format
 import "../DetailDomains.js" as DetailDomains
 
-Rectangle {
+DrawerSurface {
     id: root
 
-    property var theme
     property var snapshot: ({})
     property string domain: ""
     property string filterText: ""
@@ -27,9 +26,17 @@ Rectangle {
         }
     )
 
-    color: processDomain ? theme.inspectorCanvas : theme.panel
-    border.color: processDomain ? theme.inspectorAccentBorder : theme.border
-    border.width: theme.borderWidth
+    function accentForDomain(value) {
+        if (value === DetailDomains.Connections) return theme.networkAccent;
+        if (value === DetailDomains.Files || value === DetailDomains.Coverage)
+            return theme.storageAccent;
+        if (value === DetailDomains.Devices) return theme.deviceAccent;
+        if (value === DetailDomains.Runtime) return theme.runtimeAccent;
+        if (value === DetailDomains.Explanations) return theme.alertAccent;
+        return theme.processAccent;
+    }
+
+    accentColor: accentForDomain(domain)
 
     MouseArea {
         objectName: "xrayDrawerInputBarrier"
@@ -41,53 +48,27 @@ Rectangle {
 
     Column {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 10
+        anchors.margins: root.theme.drawerPadding
+        spacing: root.theme.gap
 
-        Item {
+        DrawerHeader {
             width: parent.width
-            height: root.processDomain ? 46 : 34
-
-            Column {
-                anchors.left: parent.left
-                anchors.right: closeButton.left
-                anchors.rightMargin: root.theme.pad
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 2
-
-                PlainText {
-                    text: DetailDomains.title(root.domain)
-                    color: root.theme.text
-                    font.family: root.theme.bodyFont
-                    font.pixelSize: root.theme.sectionFontSize
-                    font.bold: true
-                }
-
-                PlainText {
-                    text: root.processDomain
-                        ? processTable.summary.processes + " processes  ·  "
-                            + processTable.summary.threads + " threads  ·  "
-                            + Format.bytes(processTable.summary.memoryBytes)
-                            + " resident"
-                        : root.rows.length + " of " + root.allRows.length + " records"
-                    color: root.theme.muted
-                    font.family: root.theme.dataFont
-                    font.pixelSize: root.theme.captionFontSize
-                    elide: Text.ElideRight
-                }
-            }
-
-            IconButton {
-                id: closeButton
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                iconName: "close"
-                tooltipText: "Close drawer"
-                onClicked: root.closed()
-            }
+            theme: root.theme
+            accentColor: root.accentColor
+            eyebrow: root.processDomain ? "PROCESS INSPECTOR" : "EVIDENCE DRAWER"
+            title: DetailDomains.title(root.domain)
+            detail: root.processDomain
+                ? processTable.summary.processes + " processes  ·  "
+                    + processTable.summary.threads + " threads  ·  "
+                    + Format.bytes(processTable.summary.memoryBytes) + " resident"
+                : root.rows.length + " of " + root.allRows.length + " records"
+            onClosed: root.closed()
         }
 
-        TextField {
+        ThemedTextField {
+            id: filterField
+            theme: root.theme
+            accentColor: root.accentColor
             width: parent.width
             placeholderText: root.processDomain
                 ? "Filter process, command, user, or PID…"
@@ -99,7 +80,7 @@ Rectangle {
         Rectangle {
             width: parent.width
             height: root.theme.dividerWidth
-            color: root.processDomain ? root.theme.cardBorder : root.theme.border
+            color: root.theme.cardBorder
             opacity: root.theme.subtleDividerOpacity
         }
 
@@ -132,10 +113,12 @@ Rectangle {
                 width: ListView.view.width - 8
                 height: 60
                 theme: root.theme
-                title: modelData.title
-                subtitle: modelData.subtitle
-                meta: modelData.meta
-                idleColor: root.theme.quietSurface
+                title: String(modelData.title || "")
+                subtitle: String(modelData.subtitle || "")
+                meta: String(modelData.meta || "")
+                idleColor: root.theme.surfaceLow
+                hoverColor: root.theme.surfaceHigh
+                selectedColor: root.theme.accentSurface
                 titleElide: Text.ElideMiddle
                 horizontalPadding: 10
                 textSpacing: 3

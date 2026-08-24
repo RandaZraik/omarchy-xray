@@ -274,8 +274,8 @@ class UiRuntimeTests(unittest.TestCase):
                     self.assertEqual(result["targetPid"], truth["pid"])
                     self.assertGreaterEqual(result["processRows"], 2)
                     self.assertGreaterEqual(result["filteredRows"], 1)
-                    self.assertEqual(result["headerHeight"], 46)
-                    self.assertEqual(result["footerHeight"], 46)
+                    self.assertEqual(result["headerHeight"], 54)
+                    self.assertEqual(result["footerHeight"], 52)
                     self.assertTrue(result["fontFamily"])
 
     @staticmethod

@@ -105,18 +105,47 @@ Item {
         Rectangle { anchors.fill: parent; color: theme.scrim }
         MouseArea { anchors.fill: parent; onClicked: controller.close() }
 
+        Rectangle {
+            width: desk.width + theme.gap * 2
+            height: desk.height + theme.gap * 2
+            anchors.centerIn: parent
+            radius: theme.panelRadius + theme.gap
+            color: theme.transparent
+            border.color: theme.accentGlow
+            border.width: theme.borderWidth
+            opacity: 0.48
+        }
+
         BorderSurface {
             id: desk
             objectName: "xrayDesk"
             width: Math.min(theme.panelMaxWidth, panel.width - theme.outerGap * 2)
             height: Math.min(theme.panelMaxHeight, panel.height - theme.outerGap * 2)
             anchors.centerIn: parent
-            radius: theme.radius
-            color: theme.panel
-            borderSpec: Commons.Border.flat(theme.strongAccentBorder, theme.borderWidth)
+            radius: theme.panelRadius
+            borderSpec: Commons.Border.flat(theme.accentBorder, theme.borderWidth)
             padding: theme.panelPadding
 
+            gradient: Gradient {
+                GradientStop { position: 0; color: theme.surfaceMid }
+                GradientStop { position: 0.16; color: theme.panel }
+                GradientStop { position: 1; color: theme.canvas }
+            }
+
             MouseArea { anchors.fill: parent; onClicked: {} }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: theme.borderWidth
+                height: 110
+                radius: theme.panelRadius
+                gradient: Gradient {
+                    GradientStop { position: 0; color: theme.accentGlowSoft }
+                    GradientStop { position: 1; color: theme.transparent }
+                }
+            }
 
             FocusScope {
                 anchors.fill: parent
@@ -135,7 +164,7 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: theme.smallGap
+                    spacing: theme.gap
 
                     AppHeader {
                         id: appHeader
@@ -206,7 +235,7 @@ Item {
                             anchors.left: parent.left
                             anchors.leftMargin: root.browserOpen && root.browserPinned
                                 ? targetBrowser.width + theme.smallGap : 0
-                            spacing: theme.smallGap
+                            spacing: theme.gap
 
                             IdentityBar {
                                 Layout.fillWidth: true
@@ -258,11 +287,14 @@ Item {
                     visible: controller.drawer === controller.detailsDrawer
                     z: 41
                     width: controller.detailDomain === DetailDomains.Processes
-                        ? Math.min(1120, parent.width * 0.82)
-                        : Math.min(620, parent.width * 0.46)
+                        ? Math.min(1160, parent.width * 0.86)
+                        : Math.min(680, parent.width * 0.5)
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right
+                    anchors.topMargin: theme.drawerMargin
+                    anchors.bottomMargin: theme.drawerMargin
+                    anchors.rightMargin: theme.drawerMargin
                     theme: theme
                     snapshot: controller.detailSnapshot
                     domain: controller.detailDomain
@@ -277,10 +309,13 @@ Item {
                     objectName: "xraySettingsDrawer"
                     visible: controller.drawer === controller.settingsDrawer
                     z: 41
-                    width: Math.min(480, parent.width * 0.4)
+                    width: Math.min(520, parent.width * 0.44)
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right
+                    anchors.topMargin: theme.drawerMargin
+                    anchors.bottomMargin: theme.drawerMargin
+                    anchors.rightMargin: theme.drawerMargin
                     theme: theme
                     schema: controller.settingsSpec
                     defaults: controller.defaultSettings
@@ -293,10 +328,13 @@ Item {
                     objectName: "xrayCapsuleDrawer"
                     visible: controller.drawer === controller.capsuleDrawer
                     z: 41
-                    width: Math.min(480, parent.width * 0.4)
+                    width: Math.min(520, parent.width * 0.44)
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right
+                    anchors.topMargin: theme.drawerMargin
+                    anchors.bottomMargin: theme.drawerMargin
+                    anchors.rightMargin: theme.drawerMargin
                     theme: theme
                     offline: controller.offline
                     onClosed: controller.dismissDrawerAfterPointer()

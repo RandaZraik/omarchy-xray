@@ -33,7 +33,7 @@ Card {
                     76,
                     Math.max(48, (parent.height - 14) / Math.min(3, root.rows.length))
                 )
-                radius: root.theme.radius
+                radius: root.theme.controlRadius
                 color: modelData.tone === "attention"
                     ? root.theme.dangerSurface
                     : root.theme.tintedSurface(root.accentColor)

@@ -90,11 +90,6 @@ Item {
         return 0
     }
 
-    function sortActive(column) {
-        return root.sortKey === String(column.sort || column.key)
-            || (column.key === "process" && root.sortKey === "tree")
-    }
-
     function stateColor(row) {
         var code = String((row || {}).state || "?").charAt(0)
         return code === "Z" || code === "X" ? root.theme.danger : root.theme.muted
@@ -114,10 +109,15 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            radius: root.theme.radius
-            color: root.theme.inspectorRaisedSurface
-            border.color: root.theme.cardBorder
+            radius: root.theme.cardRadius
+            border.color: root.theme.accentBorder
             border.width: root.theme.borderWidth
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: root.theme.accentSurface }
+                GradientStop { position: 0.28; color: root.theme.inspectorRaisedSurface }
+                GradientStop { position: 1; color: root.theme.surfaceMid }
+            }
         }
 
         Rectangle {
@@ -125,7 +125,7 @@ Item {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             width: root.theme.telemetryRailWidth
-            radius: root.theme.radius
+            radius: root.theme.pillRadius
             color: root.theme.inspectorAccent
         }
 
@@ -214,78 +214,29 @@ Item {
         y: selectedStrip.visible ? selectedStrip.height + root.theme.gap : 0
         width: root.contentWidth
         height: Math.max(0, parent.height - y)
-        radius: root.theme.radius
+        radius: root.theme.cardRadius
         color: root.theme.inspectorTableSurface
         border.color: root.theme.cardBorder
         border.width: root.theme.borderWidth
         clip: true
 
-        Rectangle {
+        EvidenceTableHeader {
             id: tableHeader
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: root.theme.borderWidth
-            height: root.theme.processEvidenceHeaderHeight
-            color: root.theme.inspectorHeaderSurface
-
-            Row {
-                anchors.fill: parent
-
-                Repeater {
-                    model: root.columns
-
-                    delegate: Item {
-                        id: headerCell
-                        required property var modelData
-                        width: tableHeader.width * Number(modelData.width || 0)
-                        height: parent.height
-                        readonly property bool active: root.sortActive(modelData)
-
-                        Rectangle {
-                            anchors.fill: parent
-                            color: headerHover.hovered
-                                ? root.theme.controlHoverSurface : root.theme.transparent
-                        }
-
-                        PlainText {
-                            anchors.fill: parent
-                            anchors.leftMargin: root.theme.pad
-                            anchors.rightMargin: root.theme.smallGap
-                            text: modelData.text + (headerCell.active
-                                && String(modelData.sort) !== "tree"
-                                ? (root.descending ? "  ↓" : "  ↑") : "")
-                            color: headerCell.active
-                                ? root.theme.inspectorAccentText : root.theme.muted
-                            font.family: root.theme.dataFont
-                            font.pixelSize: root.theme.processEvidenceHeaderFontSize
-                            font.bold: headerCell.active
-                            font.letterSpacing: root.theme.utilityTracking
-                            verticalAlignment: Text.AlignVCenter
-                            horizontalAlignment: modelData.right
-                                ? Text.AlignRight : Text.AlignLeft
-                            elide: Text.ElideRight
-                        }
-
-                        HoverHandler { id: headerHover }
-                        TapHandler {
-                            onTapped: root.chooseSort(
-                                String(headerCell.modelData.sort
-                                    || headerCell.modelData.key)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: root.theme.dividerWidth
-                color: root.theme.cardBorder
-                opacity: root.theme.dividerOpacity
-            }
+            theme: root.theme
+            columns: root.columns
+            sortKey: root.sortKey
+            descending: root.descending
+            sortable: true
+            signalVisible: true
+            headerHeight: root.theme.processEvidenceHeaderHeight
+            fontSize: root.theme.processEvidenceHeaderFontSize
+            backgroundColor: root.theme.inspectorHeaderSurface
+            activeColor: root.theme.inspectorAccentText
+            onColumnActivated: function(key) { root.chooseSort(key); }
         }
 
         ListView {

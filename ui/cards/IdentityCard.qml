@@ -18,8 +18,10 @@ Card {
         Rectangle {
             anchors.fill: parent
             anchors.topMargin: 4
-            radius: root.theme.radius
-            color: root.theme.previewSurface
+            radius: root.theme.controlRadius
+            color: root.theme.surfaceLow
+            border.color: root.theme.cardBorder
+            border.width: root.theme.borderWidth
             clip: true
 
             Image {
@@ -80,7 +82,7 @@ Card {
                 anchors.fill: parent
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: root.theme.transparent }
-                    GradientStop { position: 1.0; color: root.theme.canvas }
+                    GradientStop { position: 1.0; color: root.theme.surfaceMid }
                 }
             }
 

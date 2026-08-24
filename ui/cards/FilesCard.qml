@@ -64,7 +64,10 @@ Card {
         }
 
         Repeater {
-            model: root.displayRows.slice(0, Math.max(0, Math.floor((parent.height - 24) / 29)))
+            model: root.displayRows.slice(0, Math.max(0, Math.floor(
+                (parent.height - root.theme.evidenceHeaderHeight)
+                    / root.theme.evidenceRowHeight
+            )))
             delegate: EvidenceTableRow {
                 required property var modelData
                 width: parent.width

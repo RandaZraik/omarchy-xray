@@ -22,13 +22,34 @@ Item {
     signal closeRequested()
 
     Layout.fillWidth: true
-    Layout.preferredHeight: 46
-    Layout.minimumHeight: 46
-    Layout.maximumHeight: 46
+    Layout.preferredHeight: 54
+    Layout.minimumHeight: 54
+    Layout.maximumHeight: 54
+
+    Rectangle {
+        anchors.fill: parent
+        radius: root.theme.cardRadius
+        color: root.theme.surfaceLow
+        border.color: root.theme.cardBorder
+        border.width: root.theme.borderWidth
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: root.theme.telemetryRailWidth
+            anchors.topMargin: root.theme.pad
+            anchors.bottomMargin: root.theme.pad
+            radius: root.theme.pillRadius
+            color: root.theme.accent
+        }
+    }
 
     RowLayout {
         id: headerRow
         anchors.fill: parent
+        anchors.leftMargin: root.theme.pad
+        anchors.rightMargin: root.theme.smallGap
         spacing: root.theme.gap
 
         RowLayout {
@@ -37,26 +58,36 @@ Item {
             Layout.minimumWidth: implicitWidth
             spacing: root.theme.gap
 
-            PlainText {
-                text: Format.icon("xray")
-                color: root.theme.accent
-                font.family: root.theme.dataFont
-                font.pixelSize: root.theme.heroFontSize
-                renderType: Text.NativeRendering
+            Rectangle {
+                width: 31
+                height: 31
+                radius: root.theme.controlRadius
+                color: root.theme.accentSurface
+                border.color: root.theme.accentBorder
+                border.width: root.theme.borderWidth
+
+                PlainText {
+                    anchors.centerIn: parent
+                    text: Format.icon("xray")
+                    color: root.theme.accent
+                    font.family: root.theme.dataFont
+                    font.pixelSize: root.theme.sectionFontSize
+                    renderType: Text.NativeRendering
+                }
             }
             ColumnLayout {
                 spacing: 0
                 PlainText {
                     text: "X—RAY"
-                    color: root.theme.sectionText
-                    font.family: root.theme.dataFont
+                    color: root.theme.text
+                    font.family: root.theme.bodyFont
                     font.pixelSize: root.theme.sectionFontSize
                     font.bold: true
-                    font.letterSpacing: root.theme.brandTracking
+                    font.letterSpacing: root.theme.brandTracking * 0.45
                 }
                 PlainText {
-                    text: "TRACE · CONTEXT · CONTROL"
-                    color: root.theme.accent
+                    text: "TRACE  /  CONTEXT  /  CONTROL"
+                    color: root.theme.muted
                     font.family: root.theme.dataFont
                     font.pixelSize: root.theme.microFontSize
                     font.letterSpacing: root.theme.taglineTracking
@@ -71,17 +102,20 @@ Item {
             spacing: root.theme.gap
 
             IconButton {
+                theme: root.theme
                 iconName: "search"
                 tooltipText: root.browserVisible ? "Hide target browser" : "Browse targets"
                 onClicked: root.browserRequested()
             }
             IconButton {
+                theme: root.theme
                 iconName: "pick"
                 tooltipText: "Pick a window"
                 enabled: root.interactionEnabled && root.capabilities.windowPicker !== false
                 onClicked: root.pickRequested()
             }
             IconButton {
+                theme: root.theme
                 iconName: root.snapshot.samplingPaused ? "play" : "pause"
                 tooltipText: root.offline
                     ? "Offline report"
@@ -91,18 +125,21 @@ Item {
                 onClicked: root.pauseRequested()
             }
             IconButton {
+                theme: root.theme
                 iconName: "capsule"
                 tooltipText: "Saved reports"
                 enabled: root.interactionEnabled
                 onClicked: root.capsuleRequested()
             }
             IconButton {
+                theme: root.theme
                 iconName: "settings"
                 tooltipText: "X-Ray settings"
                 enabled: root.interactionEnabled
                 onClicked: root.settingsRequested()
             }
             IconButton {
+                theme: root.theme
                 iconName: "close"
                 tooltipText: "Close X-Ray"
                 onClicked: root.closeRequested()

@@ -26,21 +26,26 @@ Card {
         spacing: 0
 
         Repeater {
-            model: root.rows.slice(0, Math.max(0, Math.floor(parent.height / 31)))
+            model: root.rows.slice(0, Math.max(0, Math.floor(
+                parent.height / root.theme.evidenceRowHeight
+            )))
             delegate: Item {
                 id: processRow
                 required property var modelData
                 required property int index
                 width: parent.width
-                height: 31
+                height: root.theme.evidenceRowHeight
 
                 readonly property int depth: Math.min(7, Number(modelData.depth || 0))
                 readonly property int indent: depth * 14
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: root.theme.radius
-                    color: Number(processRow.modelData.pid) === root.selectedPid || processHover.hovered ? root.theme.selected : root.theme.transparent
+                    radius: root.theme.controlRadius
+                    color: Number(processRow.modelData.pid) === root.selectedPid
+                        ? root.theme.accentSurface
+                        : processHover.hovered
+                            ? root.theme.surfaceHigh : root.theme.transparent
                 }
                 Rectangle {
                     visible: processRow.depth > 0
@@ -48,7 +53,8 @@ Card {
                     y: 0
                     width: 1
                     height: parent.height / 2
-                    color: root.theme.border
+                    color: root.theme.accent
+                    opacity: root.theme.connectorOpacity
                 }
                 Rectangle {
                     visible: processRow.depth > 0
@@ -56,7 +62,8 @@ Card {
                     y: parent.height / 2
                     width: 8
                     height: 1
-                    color: root.theme.border
+                    color: root.theme.accent
+                    opacity: root.theme.connectorOpacity
                 }
                 PlainText {
                     id: processName

@@ -57,7 +57,7 @@ Card {
                     width: 9
                     height: 9
                     radius: 5
-                    color: root.theme.panel
+                    color: root.theme.surfaceMid
                     border.color: index === root.displayNodes.length - 1 ? root.accentColor : root.theme.border
                     border.width: root.theme.borderWidth
                 }

@@ -42,7 +42,7 @@ Card {
                 Rectangle {
                     anchors.fill: parent
                     anchors.margins: 1
-                    radius: Math.max(2, root.theme.radius - 2)
+                    radius: root.theme.controlRadius
                     color: deviceCell.modelData.active
                         ? root.theme.tintedSurface(root.accentColor)
                         : (deviceCell.modelData.limited
@@ -71,6 +71,7 @@ Card {
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right
                     color: root.theme.border
+                    opacity: root.theme.subtleDividerOpacity
                 }
                 Rectangle {
                     visible: deviceCell.index < root.rows.length - 2
@@ -79,6 +80,7 @@ Card {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     color: root.theme.border
+                    opacity: root.theme.subtleDividerOpacity
                 }
 
                 Rectangle {

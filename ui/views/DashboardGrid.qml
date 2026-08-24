@@ -108,9 +108,9 @@ Item {
     Rectangle {
         visible: !!(root.snapshot.target && root.snapshot.target.error)
         anchors.fill: parent
-        radius: root.theme.radius
-        color: root.theme.panel
-        border.color: root.theme.border
+        radius: root.theme.cardRadius
+        color: root.theme.surfaceHigh
+        border.color: root.theme.cardBorder
         border.width: root.theme.borderWidth
 
         Column {
@@ -141,7 +141,7 @@ Item {
     Rectangle {
         visible: root.busy
         anchors.fill: parent
-        radius: root.theme.radius
+        radius: root.theme.cardRadius
         color: root.theme.busyScrim
         PlainText {
             anchors.centerIn: parent

@@ -3,10 +3,11 @@ import QtQuick.Layouts
 import qs.Ui
 import "../controls"
 
-Rectangle {
+DrawerSurface {
     id: root
 
-    property var theme
+    accentColor: theme.memoryAccent
+
     property var draft: ({})
     property var schema: []
     property var defaults: ({})
@@ -23,55 +24,85 @@ Rectangle {
         draft = next;
     }
 
-    color: theme.panel
-    border.color: theme.border
-    border.width: theme.borderWidth
-
-    Column {
+    ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
-        spacing: 18
+        anchors.margins: root.theme.drawerPadding
+        spacing: root.theme.gap
 
-        Row {
-            width: parent.width
-            height: 35
-            PlainText { width: parent.width - closeButton.width; text: "X-Ray settings"; color: root.theme.text; font.family: root.theme.bodyFont; font.pixelSize: root.theme.sectionFontSize; font.bold: true }
-            IconButton { id: closeButton; iconName: "close"; onClicked: root.closed() }
+        DrawerHeader {
+            Layout.fillWidth: true
+            theme: root.theme
+            accentColor: root.accentColor
+            eyebrow: "X-RAY SETTINGS"
+            title: "Live inspection"
+            detail: "Choose how X-Ray samples and captures local evidence."
+            onClosed: root.closed()
         }
 
-        PlainText { width: parent.width; text: "Live updates"; color: root.theme.accent; font.family: root.theme.dataFont; font.pixelSize: root.theme.captionFontSize; font.letterSpacing: root.theme.taglineTracking }
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            radius: root.theme.cardRadius
+            color: root.theme.surfaceMid
+            border.color: root.theme.cardBorder
+            border.width: root.theme.borderWidth
 
-        Repeater {
-            model: root.schema
-            delegate: SettingEditor {
-                required property var modelData
-                width: parent.width
-                theme: root.theme
-                settingData: modelData
-                value: root.draft[modelData.key] === undefined
-                    ? root.defaults[modelData.key]
-                    : root.draft[modelData.key]
-                onValueEdited: function(value) { root.updateDraft(modelData.key, value); }
+            Column {
+                anchors.fill: parent
+                anchors.margins: root.theme.pad
+                spacing: root.theme.gap
+
+                PlainText {
+                    width: parent.width
+                    text: "SAMPLING & PRIVACY"
+                    color: root.theme.accent
+                    font.family: root.theme.dataFont
+                    font.pixelSize: root.theme.microFontSize
+                    font.bold: true
+                    font.letterSpacing: root.theme.utilityTracking
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: root.theme.dividerWidth
+                    color: root.theme.cardBorder
+                }
+
+                Repeater {
+                    model: root.schema
+                    delegate: SettingEditor {
+                        required property var modelData
+                        width: parent.width
+                        theme: root.theme
+                        settingData: modelData
+                        value: root.draft[modelData.key] === undefined
+                            ? root.defaults[modelData.key]
+                            : root.draft[modelData.key]
+                        onValueEdited: function(value) {
+                            root.updateDraft(modelData.key, value);
+                        }
+                    }
+                }
             }
         }
 
-        Item { width: 1; height: 1 }
-
         RowLayout {
-            width: parent.width
-            spacing: 8
-            Button {
+            Layout.fillWidth: true
+            spacing: root.theme.smallGap
+
+            ActionButton {
+                theme: root.theme
+                accentColor: root.accentColor
                 text: "Restore defaults"
-                bordered: true
-                focusable: true
+                foreground: root.theme.muted
                 onClicked: root.draft = Object.assign({}, root.defaults)
             }
             Item { Layout.fillWidth: true }
-            Button {
+            ActionButton {
+                theme: root.theme
+                accentColor: root.accentColor
+                variant: "primary"
                 text: "Apply settings"
-                bordered: true
-                selected: true
-                focusable: true
                 onClicked: root.applied(root.draft)
             }
         }
