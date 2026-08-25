@@ -207,6 +207,19 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("screen: root.inspectionScreen || root.focusedScreen()", overlay)
         self.assertIn("onClosed: root.inspectionScreen = null", overlay)
 
+    def test_keyboard_shortcuts_are_owned_by_the_panel_window(self) -> None:
+        overlay = source("ui/XRayOverlay.qml")
+        panel = overlay[overlay.index("PanelWindow {") :]
+        focus_scope = panel[panel.index("FocusScope {") :]
+        shortcuts = qml_blocks(overlay, "Shortcut")
+        self.assertEqual(len(shortcuts), 3)
+        self.assertNotIn("Shortcut {", overlay[: overlay.index("PanelWindow {")])
+        for sequence in ('"Escape"', '"Ctrl+K"', '"Ctrl+R"'):
+            self.assertIn(f"sequence: {sequence}", focus_scope)
+        for shortcut in shortcuts:
+            self.assertIn("context: Qt.WindowShortcut", shortcut)
+            self.assertIn("enabled: panel.visible", shortcut)
+
     def test_capsule_summary_includes_every_compared_domain_and_metric(self) -> None:
         comparison = source("ui/controllers/XRayCapsules.qml")
         for field in (

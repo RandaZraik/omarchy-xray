@@ -76,27 +76,6 @@ Item {
     XRayTheme { id: theme }
     XRayContract { id: contract }
 
-    Shortcut {
-        sequence: "Escape"
-        context: Qt.ApplicationShortcut
-        enabled: controller.opened
-        onActivated: root.dismissTopLayer()
-    }
-
-    Shortcut {
-        sequence: "Ctrl+K"
-        context: Qt.ApplicationShortcut
-        enabled: controller.opened && root.dashboardInteractive
-        onActivated: root.browse()
-    }
-
-    Shortcut {
-        sequence: "Ctrl+R"
-        context: Qt.ApplicationShortcut
-        enabled: controller.opened && !controller.offline && controller.drawer === "" && !controller.pendingAction && !controller.refreshInFlight
-        onActivated: controller.refresh()
-    }
-
     PanelWindow {
         id: panel
         objectName: "xrayPanel"
@@ -153,6 +132,29 @@ Item {
                 anchors.bottomMargin: desk.contentBottomInset
                 anchors.leftMargin: desk.contentLeftInset
                 focus: true
+
+                Shortcut {
+                    sequence: "Escape"
+                    context: Qt.WindowShortcut
+                    enabled: panel.visible
+                    onActivated: root.dismissTopLayer()
+                }
+
+                Shortcut {
+                    sequence: "Ctrl+K"
+                    context: Qt.WindowShortcut
+                    enabled: panel.visible && root.dashboardInteractive
+                    onActivated: root.browse()
+                }
+
+                Shortcut {
+                    sequence: "Ctrl+R"
+                    context: Qt.WindowShortcut
+                    enabled: panel.visible && !controller.offline
+                        && controller.drawer === "" && !controller.pendingAction
+                        && !controller.refreshInFlight
+                    onActivated: controller.refresh()
+                }
 
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Escape) {
