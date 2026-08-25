@@ -6,8 +6,8 @@ import shutil
 from tempfile import TemporaryDirectory
 import unittest
 
-from live_backend import LiveBackend, wait_until
-from window_oracle import QML_EXECUTABLE, mapped_window
+from support.live_backend import LiveBackend, wait_until
+from support.window_oracle import QML_EXECUTABLE, mapped_window
 
 from xray.actions.desktop import DesktopEvidence
 from xray.actions.process_control import ProcessActions

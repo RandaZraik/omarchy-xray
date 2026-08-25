@@ -1,9 +1,9 @@
 import QtQuick
-import "../../ui/DetailDomains.js" as DetailDomains
-import "../../ui/DeviceSummary.js" as DeviceSummary
-import "../../ui/ProcessEvidence.js" as ProcessEvidence
-import "../../ui/domains/MetricRows.js" as MetricRows
-import "../../ui/domains/RuntimeRows.js" as RuntimeRows
+import "../../../ui/DetailDomains.js" as DetailDomains
+import "../../../ui/DeviceSummary.js" as DeviceSummary
+import "../../../ui/ProcessEvidence.js" as ProcessEvidence
+import "../../../ui/domains/MetricRows.js" as MetricRows
+import "../../../ui/domains/RuntimeRows.js" as RuntimeRows
 
 QtObject {
     Component.onCompleted: {

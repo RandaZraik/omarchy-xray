@@ -1,3 +1,10 @@
 [tool.pytest.ini_options]
+addopts = ["--strict-markers"]
 pythonpath = ["backend", "tests"]
 testpaths = ["tests"]
+markers = [
+    "portable: fast tests that run without the live Omarchy desktop",
+    "desktop: tests that interact with the live Hyprland and Quickshell session",
+    "system: tests that inspect host services, devices, or runtime facilities",
+    "performance: non-gating measurements that may vary with machine load",
+]

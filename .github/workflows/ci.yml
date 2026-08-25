@@ -31,22 +31,10 @@ jobs:
       - name: Install the portable Qt runtime
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends qml-qt6 qml6-module-qtquick qt6-declarative-dev-tools
+          sudo apt-get install --no-install-recommends python3-pytest qml-qt6 qml6-module-qtquick qt6-declarative-dev-tools
 
-      - name: Run portable unit tests
-        env:
-          PYTHONPATH: backend:tests
-        run: python3 -m unittest discover -s tests/unit -p 'test_*.py'
-
-      - name: Verify a controlled live process tree
-        env:
-          PYTHONPATH: backend:tests/functional
-        run: python3 -m unittest discover -s tests/functional -p 'test_live_truth.py'
-
-      - name: Verify portable QML and JavaScript behavior
-        env:
-          PYTHONPATH: backend:tests/functional
-        run: python3 -m unittest discover -s tests/functional -p 'test_qml_logic.py'
+      - name: Run the complete portable test tier
+        run: python3 -m pytest -m portable
 
       - name: Check portable QML and JavaScript syntax
         run: |

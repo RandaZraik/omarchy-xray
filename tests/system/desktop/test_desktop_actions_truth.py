@@ -5,11 +5,13 @@ from pathlib import Path
 import shutil
 import subprocess
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from urllib.parse import unquote, urlparse
+import uuid
 
-from live_backend import wait_until
+from support.live_backend import wait_until
 
 from xray.actions.process_control import ProcessActions
 from xray.processes.identity import identity_for
@@ -72,6 +74,15 @@ class DesktopActionTruthTests(unittest.TestCase):
     def test_terminal_opens_the_selected_working_directory(self) -> None:
         with TemporaryDirectory(prefix="xray-desktop-action-") as directory:
             working_directory = Path(directory)
+            window_title = f"X-Ray terminal test {uuid.uuid4()}"
+            test_shell = working_directory / "test-shell"
+            test_shell.write_text(
+                "#!/bin/sh\n"
+                f"printf '\\033]2;{window_title}\\007'\n"
+                "exec sleep 30\n",
+                encoding="utf-8",
+            )
+            test_shell.chmod(0o700)
             target = subprocess.Popen(["sleep", "30"], cwd=working_directory)
             opened: set[str] = set()
             try:
@@ -82,16 +93,28 @@ class DesktopActionTruthTests(unittest.TestCase):
 
                 before = self._window_addresses()
                 known_cwds = self._pids_in_directory(working_directory)
-                terminal = self.actions.perform("terminal", identity, context)
+                with patch(
+                    "xray.actions.process_control.pwd.getpwuid",
+                    return_value=SimpleNamespace(pw_shell=str(test_shell)),
+                ):
+                    terminal = self.actions.perform("terminal", identity, context)
                 self.assertTrue(terminal.ok, terminal.message)
                 self.assertTrue(
                     wait_until(
-                        lambda: bool(self._window_addresses() - before), timeout=5.0
+                        lambda: any(
+                            str(window.get("title", "")) == window_title
+                            for window in self._new_windows(before)
+                        ),
+                        timeout=5.0,
                     ),
                     "the desktop did not create a terminal window",
                 )
-                terminal_windows = self._new_windows(before)
-                opened.update(str(window["address"]) for window in terminal_windows)
+                terminal_window = next(
+                    window
+                    for window in self._new_windows(before)
+                    if str(window.get("title", "")) == window_title
+                )
+                opened.add(str(terminal_window["address"]))
                 self.assertTrue(
                     wait_until(
                         lambda: bool(

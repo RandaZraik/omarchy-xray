@@ -287,10 +287,10 @@ class UiContractTests(unittest.TestCase):
         self.assertNotIn("pull_request_target", workflow)
         self.assertNotIn("contents: write", workflow)
 
-    def test_ci_executes_the_portable_qml_behavior_oracle(self) -> None:
+    def test_ci_executes_portable_tests_with_the_qml_runtime(self) -> None:
         workflow = source(".github/workflows/ci.yml")
         self.assertIn("qml-qt6", workflow)
-        self.assertIn("test_qml_logic.py", workflow)
+        self.assertIn("python3 -m pytest -m portable", workflow)
 
     def test_release_validation_is_isolated_from_release_writes(self) -> None:
         workflow = source(".github/workflows/prepare-release.yml")

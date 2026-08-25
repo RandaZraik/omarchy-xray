@@ -3,7 +3,7 @@ import re
 from tempfile import TemporaryDirectory
 import unittest
 
-from live_backend import LiveBackend
+from support.live_backend import LiveBackend
 
 from xray.devices.gpu import collect_gpu_clients
 from xray.system.procfs import ProcFs

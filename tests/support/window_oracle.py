@@ -10,7 +10,7 @@ import time
 from typing import Iterator
 import uuid
 
-from live_backend import wait_until
+from support.live_backend import wait_until
 
 from xray.runtime.context import list_windows
 from xray.system.commands import CommandRunner
@@ -76,12 +76,12 @@ def mapped_window(
                     return False
                 if window.get("focused"):
                     return True
-                return focus_window(runner, str(window["address"]))
+                if not focus_window(runner, str(window["address"])):
+                    return False
+                return find_oracle() and bool(window.get("focused"))
 
             if not wait_until(focus_oracle, 5.0):
                 raise AssertionError(f"the {label} oracle window could not be focused")
-            if not wait_until(find_oracle, 2.0) or not window.get("focused"):
-                raise AssertionError(f"the {label} oracle window did not receive focus")
             # Mapping precedes the first committed frame on Wayland. Let the
             # compositor present the known surface before a pixel oracle uses it.
             time.sleep(0.15)

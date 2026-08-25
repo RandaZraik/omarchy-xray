@@ -8,8 +8,8 @@ import subprocess
 import sys
 import time
 
+from support.paths import PROJECT_ROOT
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class LiveBackend:

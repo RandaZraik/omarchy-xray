@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 import time
 import unittest
 
-from live_backend import LiveBackend, wait_until
+from support.live_backend import LiveBackend, wait_until
 
 
 HAS_SYSTEMD_USER = bool(shutil.which("systemctl") and shutil.which("systemd-run"))

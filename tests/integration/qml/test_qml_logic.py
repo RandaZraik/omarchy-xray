@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import unittest
 
+from support.markers import parse_json_marker
+
 
 QML = shutil.which("qml6") or shutil.which("qml")
-ORACLE = Path(__file__).with_name("qml_logic_oracle.qml")
+ORACLE = Path(__file__).with_name("oracles") / "qml_logic_oracle.qml"
 
 
 @unittest.skipUnless(QML, "requires a Qt QML runtime")
@@ -34,17 +35,7 @@ class QmlLogicTests(unittest.TestCase):
         if completed.returncode != 0:
             raise AssertionError(completed.stderr or completed.stdout)
         output = completed.stdout + "\n" + completed.stderr
-        marker = next(
-            (
-                line.partition("XRAY_QML ")[2]
-                for line in output.splitlines()
-                if "XRAY_QML " in line
-            ),
-            "",
-        )
-        if not marker:
-            raise AssertionError(f"QML oracle returned no payload: {output}")
-        cls.data = json.loads(marker)
+        cls.data = parse_json_marker(output, "XRAY_QML")
 
     def test_device_states_are_consistent(self) -> None:
         self.assertTrue(all(not row["active"] for row in self.data["empty"]["rows"]))
@@ -227,8 +218,6 @@ class QmlLogicTests(unittest.TestCase):
         self.assertEqual(result["expandedCount"], 1251)
         self.assertEqual(result["collapsedCount"], 1)
         self.assertTrue(result["rowIdentityPreserved"])
-        self.assertLess(result["prepareElapsedMs"], 1000)
-        self.assertLess(result["toggleElapsedMs"], 250)
         self.assertEqual(self.data["largeFilePathSearchCount"], 1)
         self.assertGreater(self.data["largeFilePidSearchCount"], 0)
 

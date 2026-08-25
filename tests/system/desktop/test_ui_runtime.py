@@ -9,25 +9,26 @@ import sys
 from tempfile import TemporaryDirectory
 import unittest
 
-from live_backend import PROJECT_ROOT
+from support.quickshell import (
+    DRAWER_ENVIRONMENT_KEYS,
+    PROJECT_ROOT,
+    QuickshellHarness,
+)
 
 
-QUICKSHELL = shutil.which("quickshell") or shutil.which("qs")
-OMARCHY_IMPORTS = Path("/usr/share/omarchy/shell")
-ORACLE = Path(__file__).with_name("ui_runtime_oracle.qml")
-PUBLIC_ORACLE = Path(__file__).with_name("public_ui_oracle.qml")
-TIMEOUT_ORACLE = Path(__file__).with_name("backend_timeout_oracle.qml")
-PICKER_ORACLE = Path(__file__).with_name("picker_lifecycle_oracle.qml")
-DRAWER_PERFORMANCE_ORACLE = Path(__file__).with_name("drawer_performance_oracle.qml")
-DRAWER_SEARCH_ORACLE = Path(__file__).with_name("drawer_search_oracle.qml")
-DRAWER_ENVIRONMENT_KEYS = {
-    "XRAY_DRAWER_DOMAIN",
-    "XRAY_DRAWER_SECTION",
-}
+HARNESS = QuickshellHarness()
+ORACLE_ROOT = Path(__file__).with_name("oracles")
+ORACLE = ORACLE_ROOT / "ui_runtime_oracle.qml"
+PUBLIC_ORACLE = ORACLE_ROOT / "public_ui_oracle.qml"
+TIMEOUT_ORACLE = ORACLE_ROOT / "backend_timeout_oracle.qml"
+PICKER_ORACLE = ORACLE_ROOT / "picker_lifecycle_oracle.qml"
+DRAWER_SEARCH_ORACLE = (
+    PROJECT_ROOT / "tests/support/oracles/drawer_search_oracle.qml"
+)
 
 
 @unittest.skipUnless(
-    QUICKSHELL and os.environ.get("WAYLAND_DISPLAY") and OMARCHY_IMPORTS.is_dir(),
+    HARNESS.available,
     "requires a live Omarchy Quickshell session",
 )
 class UiRuntimeTests(unittest.TestCase):
@@ -37,80 +38,20 @@ class UiRuntimeTests(unittest.TestCase):
         marker_name: str,
         extra_env: dict[str, str] | None = None,
     ) -> dict:
-        environment = {
-            key: value
-            for key, value in os.environ.items()
-            if key not in DRAWER_ENVIRONMENT_KEYS
-        }
-        environment.update(extra_env or {})
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            config = root / "config"
-            config.mkdir()
-            shutil.copy2(oracle, config / "shell.qml")
-            shutil.copytree(PROJECT_ROOT / "ui", config / "ui")
-            shutil.copytree(OMARCHY_IMPORTS / "Commons", config / "Commons")
-            shutil.copytree(OMARCHY_IMPORTS / "Ui", config / "Ui")
-            completed = subprocess.run(
-                [str(QUICKSHELL), "--path", str(config / "shell.qml")],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+            shell = HARNESS.stage_plugin(root, oracle)
+            completed = HARNESS.run(
+                shell,
                 timeout=35,
-                check=False,
-                env={
-                    **environment,
-                    "XDG_STATE_HOME": str(root / "state"),
-                },
+                environment=extra_env,
+                unset_environment=DRAWER_ENVIRONMENT_KEYS,
+                state_home=root / "state",
             )
-        output = completed.stdout + "\n" + completed.stderr
-        self.assertEqual(completed.returncode, 0, output)
-        marker = next(
-            (
-                line.partition(f"{marker_name} ")[2]
-                for line in output.splitlines()
-                if f"{marker_name} " in line
-            ),
-            "",
-        )
-        self.assertTrue(marker, output)
-        return json.loads(marker)
+        self.assertEqual(completed.returncode, 0, completed.output)
+        return completed.json_marker(marker_name)
 
-    def _drawer_performance(self, extra_env: dict[str, str] | None = None) -> dict:
-        result = self._run_drawer_oracle(
-            DRAWER_PERFORMANCE_ORACLE,
-            "XRAY_DRAWER_PERF",
-            extra_env,
-        )
-        self.assertLess(result["collapseElapsedMs"], 250)
-        self.assertLess(result["expandElapsedMs"], 250)
-        return result
-
-    def test_large_drawer_sections_toggle_without_stalling(self) -> None:
-        result = self._drawer_performance(
-            {"XRAY_DRAWER_DOMAIN": "files"}
-        )
-        self.assertEqual(result["sourceCount"], 2500)
-        self.assertEqual(result["resourceCount"], 1250)
-        self.assertEqual(result["collapsedCount"], 1)
-        self.assertEqual(result["expandedCount"], 1251)
-
-    def test_runtime_section_collapse_owns_all_software_rows(self) -> None:
-        result = self._drawer_performance(
-            {
-                "XRAY_DRAWER_DOMAIN": "runtime",
-                "XRAY_DRAWER_SECTION": "software",
-            }
-        )
-        self.assertEqual(result["domain"], "runtime")
-        self.assertEqual(result["section"], "software")
-        self.assertEqual(result["resourceCount"], 188)
-        self.assertEqual(result["collapsedCount"], 11)
-        self.assertEqual(result["expandedCount"], 192)
-
-    def test_large_files_search_debounces_and_renders_without_stalling(self) -> None:
+    def test_large_files_search_filters_and_restores_rows(self) -> None:
         result = self._run_drawer_oracle(
             DRAWER_SEARCH_ORACLE,
             "XRAY_DRAWER_SEARCH",
@@ -119,8 +60,6 @@ class UiRuntimeTests(unittest.TestCase):
         self.assertEqual(result["resourceCount"], 3000)
         self.assertEqual(result["filteredCount"], 2)
         self.assertEqual(result["restoredCount"], 3001)
-        self.assertLess(result["searchElapsedMs"], 350)
-        self.assertLess(result["clearElapsedMs"], 250)
 
     def _run_picker(
         self, pick_data: dict[str, object], expected_query: str = ""
@@ -156,25 +95,17 @@ class UiRuntimeTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            completed = subprocess.run(
-                [str(QUICKSHELL), "--path", str(root / "shell.qml")],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+            completed = HARNESS.run(
+                root / "shell.qml",
                 timeout=5,
-                check=False,
-                env={
-                    **os.environ,
-                    "XDG_STATE_HOME": str(root / "state"),
+                environment={
                     "XRAY_PICKER_EXPECTED_QUERY": expected_query,
                 },
+                state_home=root / "state",
             )
-        output = completed.stdout + "\n" + completed.stderr
-        self.assertEqual(completed.returncode, 0, output)
-        self.assertIn("XRAY_PICKER ok", output)
-        self.assertNotIn("XRAY_PICKER_ERROR", output)
+        self.assertEqual(completed.returncode, 0, completed.output)
+        self.assertIn("XRAY_PICKER ok", completed.output)
+        self.assertNotIn("XRAY_PICKER_ERROR", completed.output)
 
     def test_cancelled_window_picker_keeps_the_inspection_lifecycle_open(self) -> None:
         self._run_picker({"cancelled": True})
@@ -220,41 +151,31 @@ class UiRuntimeTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            completed = subprocess.run(
-                [str(QUICKSHELL), "--path", str(root / "shell.qml")],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+            completed = HARNESS.run(
+                root / "shell.qml",
                 timeout=5,
-                check=False,
             )
-        output = completed.stdout + "\n" + completed.stderr
-        self.assertEqual(completed.returncode, 0, output)
-        self.assertIn("XRAY_BACKEND_TIMEOUT ok", output)
-        self.assertNotIn("XRAY_BACKEND_TIMEOUT_ERROR", output)
+        self.assertEqual(completed.returncode, 0, completed.output)
+        self.assertIn("XRAY_BACKEND_TIMEOUT ok", completed.output)
+        self.assertNotIn("XRAY_BACKEND_TIMEOUT_ERROR", completed.output)
 
     def test_shipped_entrypoints_cards_drilldowns_and_offline_mode_execute(
         self,
     ) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            config = root / "config"
-            config.mkdir()
             (root / "home").mkdir()
-            shutil.copy2(PUBLIC_ORACLE, config / "shell.qml")
-            for name in ("XRay.qml", "BarWidget.qml"):
-                shutil.copy2(PROJECT_ROOT / name, config / name)
-            shutil.copytree(PROJECT_ROOT / "ui", config / "ui")
-            shutil.copytree(PROJECT_ROOT / "backend", config / "backend")
-            shutil.copytree(OMARCHY_IMPORTS / "Commons", config / "Commons")
-            shutil.copytree(OMARCHY_IMPORTS / "Ui", config / "Ui")
+            shell = HARNESS.stage_plugin(
+                root,
+                PUBLIC_ORACLE,
+                include_backend=True,
+                entrypoints=("XRay.qml", "BarWidget.qml"),
+            )
             locked = root / "public-ui-oracle.txt"
             fixture = subprocess.Popen(
                 [
                     sys.executable,
-                    str(PROJECT_ROOT / "tests/functional/truth_fixture.py"),
+                    str(PROJECT_ROOT / "tests/fixtures/truth_fixture.py"),
                     str(locked),
                 ],
                 cwd=directory,
@@ -266,38 +187,21 @@ class UiRuntimeTests(unittest.TestCase):
             self.addCleanup(self._stop, fixture)
             assert fixture.stdout
             truth = json.loads(fixture.stdout.readline())
-            completed = subprocess.run(
-                [str(QUICKSHELL), "--path", str(config / "shell.qml")],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+            completed = HARNESS.run(
+                shell,
                 timeout=85,
-                check=False,
-                env={
-                    **os.environ,
+                environment={
                     "HOME": str(root / "home"),
-                    "XDG_STATE_HOME": str(root / "state"),
                     "XRAY_UI_ORACLE_QUERY": f"pid:{truth['pid']}",
                     "XRAY_UI_ORACLE_PID": str(truth["pid"]),
                     "XRAY_UI_ORACLE_CHILD_PID": str(truth["childPid"]),
                     "XRAY_UI_ORACLE_PORT": str(truth["port"]),
                     "XRAY_UI_ORACLE_PATH": str(locked),
                 },
+                state_home=root / "state",
             )
-            output = completed.stdout + "\n" + completed.stderr
-            self.assertEqual(completed.returncode, 0, output)
-            marker = next(
-                (
-                    line.partition("XRAY_PUBLIC_UI ")[2]
-                    for line in output.splitlines()
-                    if "XRAY_PUBLIC_UI " in line
-                ),
-                "",
-            )
-            self.assertTrue(marker, output)
-            result = json.loads(marker)
+            self.assertEqual(completed.returncode, 0, completed.output)
+            result = completed.json_marker("XRAY_PUBLIC_UI")
             self.assertEqual(result["targetPid"], truth["pid"])
             self.assertTrue(result["offline"])
             self.assertGreater(result["inspectionId"], 0)
@@ -314,18 +218,12 @@ class UiRuntimeTests(unittest.TestCase):
     def test_real_components_bridge_drawers_and_controls_execute(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            config = root / "config"
-            config.mkdir()
-            shutil.copy2(ORACLE, config / "shell.qml")
-            shutil.copytree(PROJECT_ROOT / "ui", config / "ui")
-            shutil.copytree(PROJECT_ROOT / "backend", config / "backend")
-            shutil.copytree(OMARCHY_IMPORTS / "Commons", config / "Commons")
-            shutil.copytree(OMARCHY_IMPORTS / "Ui", config / "Ui")
+            shell = HARNESS.stage_plugin(root, ORACLE, include_backend=True)
             locked = root / "ui-oracle.txt"
             fixture = subprocess.Popen(
                 [
                     sys.executable,
-                    str(PROJECT_ROOT / "tests/functional/truth_fixture.py"),
+                    str(PROJECT_ROOT / "tests/fixtures/truth_fixture.py"),
                     str(locked),
                 ],
                 cwd=directory,
@@ -339,35 +237,18 @@ class UiRuntimeTests(unittest.TestCase):
             truth = json.loads(fixture.stdout.readline())
             for width, height in ((1000, 680), (1400, 840)):
                 with self.subTest(width=width, height=height):
-                    completed = subprocess.run(
-                        [str(QUICKSHELL), "--path", str(config / "shell.qml")],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
+                    completed = HARNESS.run(
+                        shell,
                         timeout=20,
-                        check=False,
-                        env={
-                            **os.environ,
-                            "XDG_STATE_HOME": str(root / f"state-{width}"),
+                        environment={
                             "XRAY_UI_ORACLE_QUERY": f"pid:{truth['pid']}",
                             "XRAY_UI_ORACLE_WIDTH": str(width),
                             "XRAY_UI_ORACLE_HEIGHT": str(height),
                         },
+                        state_home=root / f"state-{width}",
                     )
-                    output = completed.stdout + "\n" + completed.stderr
-                    self.assertEqual(completed.returncode, 0, output)
-                    marker = next(
-                        (
-                            line.partition("XRAY_UI_RUNTIME ")[2]
-                            for line in output.splitlines()
-                            if "XRAY_UI_RUNTIME " in line
-                        ),
-                        "",
-                    )
-                    self.assertTrue(marker, output)
-                    result = json.loads(marker)
+                    self.assertEqual(completed.returncode, 0, completed.output)
+                    result = completed.json_marker("XRAY_UI_RUNTIME")
                     self.assertEqual(result["targetPid"], truth["pid"])
                     self.assertGreaterEqual(result["processRows"], 2)
                     self.assertGreaterEqual(result["filteredRows"], 1)

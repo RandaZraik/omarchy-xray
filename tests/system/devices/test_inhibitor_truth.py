@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import time
 import unittest
 
-from live_backend import LiveBackend
+from support.live_backend import LiveBackend
 
 from xray.devices.inhibitors import collect_inhibitors
 from xray.system.commands import CommandRunner

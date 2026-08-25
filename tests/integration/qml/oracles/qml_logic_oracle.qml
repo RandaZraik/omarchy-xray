@@ -1,9 +1,9 @@
 import QtQuick
-import "../../ui/DeviceSummary.js" as DeviceSummary
-import "../../ui/TargetSearch.js" as TargetSearch
-import "../../ui/DetailDomains.js" as DetailDomains
-import "../../ui/Format.js" as Format
-import "../../ui/ProcessEvidence.js" as ProcessEvidence
+import "../../../../ui/DeviceSummary.js" as DeviceSummary
+import "../../../../ui/TargetSearch.js" as TargetSearch
+import "../../../../ui/DetailDomains.js" as DetailDomains
+import "../../../../ui/Format.js" as Format
+import "../../../../ui/ProcessEvidence.js" as ProcessEvidence
 
 QtObject {
     Component.onCompleted: {

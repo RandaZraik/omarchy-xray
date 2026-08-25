@@ -11,9 +11,11 @@ import struct
 import subprocess
 import time
 
+from support.markers import parse_json_marker
+
 
 QML = shutil.which("qml6") or shutil.which("qml")
-DETAIL_ORACLE = Path(__file__).with_name("live_detail_oracle.qml")
+DETAIL_ORACLE = Path(__file__).with_name("oracles") / "live_detail_oracle.qml"
 
 
 def display_bytes(value: object) -> str:
@@ -856,14 +858,4 @@ def rendered_details(snapshot: dict[str, object]) -> dict[str, object]:
     output = completed.stdout + "\n" + completed.stderr
     if completed.returncode != 0:
         raise AssertionError(output)
-    marker = next(
-        (
-            line.partition("XRAY_LIVE_DETAILS ")[2]
-            for line in output.splitlines()
-            if "XRAY_LIVE_DETAILS " in line
-        ),
-        "",
-    )
-    if not marker:
-        raise AssertionError(f"detail oracle returned no payload: {output}")
-    return json.loads(marker)
+    return parse_json_marker(output, "XRAY_LIVE_DETAILS")

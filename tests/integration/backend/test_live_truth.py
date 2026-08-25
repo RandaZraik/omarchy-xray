@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import pwd
+import signal
 import socket
 import subprocess
 import sys
@@ -15,8 +16,8 @@ import zipfile
 from itertools import product
 import time
 
-from live_backend import LiveBackend, PROJECT_ROOT, wait_until
-from machine_truth import (
+from support.live_backend import LiveBackend, PROJECT_ROOT, wait_until
+from support.machine_truth import (
     descriptor_info,
     expected_detail_counts,
     proc_security,
@@ -33,15 +34,17 @@ class LiveTruthTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.temporary = TemporaryDirectory(prefix=".xray-truth-", dir=Path.home())
+        cls.addClassCleanup(cls.temporary.cleanup)
         cls.root = Path(cls.temporary.name)
         cls.locked_path = cls.root / "owned evidence.txt"
         cls.secret = "xray-fixture-secret-should-never-escape"
         environment = dict(os.environ)
         environment["XRAY_TRUTH_MARKER"] = "known-environment-value-must-stay-private"
+        environment["XRAY_TRUTH_FOREGROUND"] = "1"
         cls.fixture = subprocess.Popen(
             [
                 sys.executable,
-                str(PROJECT_ROOT / "tests/functional/truth_fixture.py"),
+                str(PROJECT_ROOT / "tests/fixtures/truth_fixture.py"),
                 str(cls.locked_path),
                 "--api-key",
                 cls.secret,
@@ -51,7 +54,9 @@ class LiveTruthTests(unittest.TestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            start_new_session=True,
         )
+        cls.addClassCleanup(cls._stop_process, cls.fixture)
         assert cls.fixture.stdout
         ready = cls.fixture.stdout.readline()
         if not ready:
@@ -59,20 +64,7 @@ class LiveTruthTests(unittest.TestCase):
             raise AssertionError(f"truth fixture failed to start: {error}")
         cls.truth = json.loads(ready)
         cls.backend = LiveBackend(cls.root / "state")
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls.backend.close()
-        fixture_pid = int(cls.truth["pid"])
-        if Path(f"/proc/{fixture_pid}").exists():
-            os.kill(fixture_pid, 15)
-            wait_until(lambda: not Path(f"/proc/{fixture_pid}").exists())
-        cls.fixture.wait(timeout=3.0)
-        if cls.fixture.stdout:
-            cls.fixture.stdout.close()
-        if cls.fixture.stderr:
-            cls.fixture.stderr.close()
-        cls.temporary.cleanup()
+        cls.addClassCleanup(cls.backend.close)
 
     def require_ok(self, response: dict[str, object]) -> dict[str, object]:
         self.assertTrue(response.get("ok"), response)
@@ -599,7 +591,7 @@ class LiveTruthTests(unittest.TestCase):
             fixture = subprocess.Popen(
                 [
                     sys.executable,
-                    str(PROJECT_ROOT / "tests/functional/truth_fixture.py"),
+                    str(PROJECT_ROOT / "tests/fixtures/truth_fixture.py"),
                     str(root / "owned evidence.txt"),
                 ],
                 cwd=root,
@@ -607,6 +599,7 @@ class LiveTruthTests(unittest.TestCase):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                start_new_session=True,
             )
             self.addCleanup(self._stop_process, fixture)
             assert fixture.stdout
@@ -654,11 +647,17 @@ class LiveTruthTests(unittest.TestCase):
     @staticmethod
     def _stop_process(process: subprocess.Popen[str]) -> None:
         if process.poll() is None:
-            process.terminate()
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
         try:
             process.wait(timeout=3)
         except subprocess.TimeoutExpired:
-            process.kill()
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             process.wait(timeout=3)
         if process.stdout:
             process.stdout.close()

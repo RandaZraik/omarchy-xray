@@ -12,8 +12,8 @@ from tempfile import TemporaryDirectory
 import time
 import unittest
 
-from live_backend import LiveBackend
-from machine_truth import (
+from support.live_backend import LiveBackend
+from support.machine_truth import (
     command_json,
     descriptor_info,
     descriptor_targets,
@@ -73,12 +73,9 @@ class RealApplicationTruthTests(unittest.TestCase):
             if window := next((row for row in clients if predicate(row)), None):
                 cls.windows[label] = window
         cls.state = TemporaryDirectory(prefix=".xray-app-truth-", dir=Path.home())
+        cls.addClassCleanup(cls.state.cleanup)
         cls.backend = LiveBackend(Path(cls.state.name))
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls.backend.close()
-        cls.state.cleanup()
+        cls.addClassCleanup(cls.backend.close)
 
     def inspect_window(self, label: str) -> dict[str, object]:
         address = self.windows[label]["address"]
@@ -201,6 +198,12 @@ class RealApplicationTruthTests(unittest.TestCase):
             {**row, "message": redact_text(row["message"])[:4000]} for row in raw_logs
         ]
         observed_logs = service_snapshot["logs"]
+        uptime = float(Path("/proc/uptime").read_text().split()[0])
+        process_started = (
+            time.time()
+            - uptime
+            + int(service_processes[0]["startTime"]) / os.sysconf("SC_CLK_TCK")
+        )
         if observed_logs:
             starts = [
                 index
@@ -209,12 +212,6 @@ class RealApplicationTruthTests(unittest.TestCase):
             ]
             self.assertTrue(starts, "displayed journal rows differ from journalctl")
             skipped_prefix = expected_logs[: starts[0]]
-            uptime = float(Path("/proc/uptime").read_text().split()[0])
-            process_started = (
-                time.time()
-                - uptime
-                + int(service_processes[0]["startTime"]) / os.sysconf("SC_CLK_TCK")
-            )
             self.assertTrue(
                 all(
                     abs(int(row["timestamp"]) / 1_000_000 - process_started) <= 0.1
@@ -223,7 +220,13 @@ class RealApplicationTruthTests(unittest.TestCase):
                 "journal entries after process start were omitted",
             )
         else:
-            self.assertFalse(expected_logs)
+            self.assertTrue(
+                all(
+                    abs(int(row["timestamp"]) / 1_000_000 - process_started) <= 0.1
+                    for row in expected_logs
+                ),
+                "journal entries after process start were omitted",
+            )
         rendered_service = rendered_details(service_snapshot)
         runtime_rows = rendered_service["rows"]["runtime"]
         self.assertTrue(

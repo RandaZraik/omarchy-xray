@@ -6,7 +6,7 @@ import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 
-from live_backend import LiveBackend, wait_until
+from support.live_backend import LiveBackend, wait_until
 
 from xray.devices.pipewire import collect_pipewire
 from xray.system.commands import CommandRunner
