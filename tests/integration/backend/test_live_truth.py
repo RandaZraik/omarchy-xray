@@ -297,14 +297,16 @@ class LiveTruthTests(unittest.TestCase):
         self.assertGreater(root["cpuPercent"], 0)
         self.assertGreater(metrics["cpuPercent"], 0)
         self.assertGreater(root["writeBytesPerSecond"], 0)
-        expected_cpu = (
-            (cpu_after - cpu_before) / max(1, total_cpu_after - total_cpu_before) * 100
-        )
+        total_cpu_delta = max(1, total_cpu_after - total_cpu_before)
+        expected_cpu = (cpu_after - cpu_before) / total_cpu_delta * 100
         # The independent reads bracket, rather than occur at the exact same
-        # instant as, the backend sample. One percentage point covers that
-        # unavoidable scheduling edge while still catching per-core vs total
-        # machine-capacity mistakes.
-        self.assertLessEqual(abs(root["cpuPercent"] - expected_cpu), 1.0)
+        # instant as, the backend sample. Allow two discrete scheduler ticks
+        # plus the backend's one-decimal rounding; on small CI runners that
+        # quantization can exceed one percentage point. The one-point floor
+        # covers the remaining scheduling edge while still catching per-core
+        # vs total machine-capacity mistakes.
+        cpu_tolerance = max(1.0, 200 / total_cpu_delta + 0.05)
+        self.assertLessEqual(abs(root["cpuPercent"] - expected_cpu), cpu_tolerance)
         io_values_before = {
             line.partition(":")[0]: int(line.partition(":")[2])
             for line in io_before.splitlines()
