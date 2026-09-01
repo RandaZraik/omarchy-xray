@@ -159,6 +159,7 @@ Card {
                 required property int index
                 width: ListView.view.width
                 height: root.theme.consoleProcessRowHeight
+                clip: true
                 readonly property bool selected: Number(modelData.pid) === root.selectedPid
                 readonly property int depth: root.sortKey === "tree"
                     ? Math.min(root.theme.processEvidenceMaximumDepth,
@@ -236,6 +237,7 @@ Card {
                     Item {
                         width: root.columnWidth("command", parent.width)
                         height: parent.height
+                        clip: true
                         PlainText {
                             anchors.fill: parent
                             anchors.leftMargin: root.theme.smallGap

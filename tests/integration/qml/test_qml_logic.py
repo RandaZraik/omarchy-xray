@@ -117,6 +117,15 @@ class QmlLogicTests(unittest.TestCase):
         self.assertEqual(self.data["ipv6Endpoint"], "[2001:db8::1]:443")
         self.assertEqual(self.data["defaultMemory"], "621.6 MiB")
 
+    def test_process_commands_flatten_embedded_line_breaks(self) -> None:
+        expected = "zsh -c first line second line third line"
+        self.assertEqual(self.data["multilineProcessCommand"], expected)
+        self.assertEqual(self.data["multilineConciseCommand"], expected)
+        self.assertEqual(
+            self.data["multilineStringCommand"],
+            "worker --script first line second line",
+        )
+
     def test_compact_device_badges_remain_visually_distinct(self) -> None:
         self.assertNotIn("•", self.data["deviceIcons"])
         self.assertEqual(len(set(self.data["deviceIcons"])), 4)

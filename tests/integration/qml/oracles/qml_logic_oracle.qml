@@ -283,6 +283,15 @@ QtObject {
                     "/usr/lib/chromium/chromium --load-extension=/usr/share/omarchy/extensions/whatsapp-slim --oauth2-client-id=demo"
                 ]
             }),
+            "multilineProcessCommand": ProcessEvidence.command({
+                "command": ["zsh", "-c", "first line\nsecond line\r\nthird line"]
+            }),
+            "multilineConciseCommand": ProcessEvidence.conciseCommand({
+                "command": ["zsh", "-c", "first line\nsecond line\r\nthird line"]
+            }),
+            "multilineStringCommand": ProcessEvidence.conciseCommand({
+                "command": "worker --script first line\nsecond line"
+            }),
             "variantStyleProcessCommand": ProcessEvidence.command({
                 "command": {
                     "0": "/workspace/.venv/bin/python3",

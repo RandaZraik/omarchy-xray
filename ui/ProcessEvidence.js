@@ -4,13 +4,21 @@
 function _commandValues(row) {
     var raw = row ? row.command : null
     if (!raw) return []
-    if (typeof raw === "string") return raw ? [raw] : []
+    if (typeof raw === "string") return raw ? [_singleLine(raw)] : []
     var length = Number(raw.length)
     if (!isFinite(length) || length < 1) return []
     var values = []
     for (var index = 0; index < length; index++)
-        values.push(String(raw[index]))
+        values.push(_singleLine(raw[index]))
     return values
+}
+
+function _singleLine(value) {
+    // An argv entry may legally contain line breaks (for example, a shell -c
+    // script). Process rows are single-line evidence, so keep those control
+    // characters from turning one command into content that crosses rows.
+    return String(value === undefined || value === null ? "" : value)
+        .replace(/[\r\n\u2028\u2029]+/g, " ")
 }
 
 function _basenameCommand(value) {
@@ -36,9 +44,9 @@ function _isInterpreter(value) {
 }
 
 function command(row) {
-    var value = Format.firstCommand((row || {}).command)
+    var value = _singleLine(Format.firstCommand((row || {}).command))
     if (value) return value
-    return String((row || {}).executable || "Command unavailable")
+    return _singleLine((row || {}).executable || "Command unavailable")
 }
 
 function presentation(row) {

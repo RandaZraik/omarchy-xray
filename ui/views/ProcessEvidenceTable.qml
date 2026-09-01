@@ -261,6 +261,7 @@ Item {
                 required property var modelData
                 width: ListView.view.width
                 height: root.theme.processEvidenceRowHeight
+                clip: true
                 readonly property int depth: root.sortKey === "tree"
                     ? Math.min(root.theme.processEvidenceMaximumDepth,
                         Number(modelData.depth || 0)) : 0
@@ -305,6 +306,7 @@ Item {
                     Item {
                         width: root.columnWidth("process", parent.width)
                         height: parent.height
+                        clip: true
 
                         Rectangle {
                             visible: processRow.depth > 0
