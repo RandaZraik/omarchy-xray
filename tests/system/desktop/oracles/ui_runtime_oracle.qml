@@ -354,7 +354,10 @@ ShellRoot {
                 root.require(footer.height === 38, "footer height changed")
 
                 targetBrowser.catalog = {
-                    "quickTargets": [{"label": "Microphone", "query": "microphone"}],
+                    "quickTargets": [{
+                        "label": "Owner shortcut",
+                        "query": "pid:" + controller.snapshot.target.ownerPid
+                    }],
                     "processes": [{
                         "name": "xray-truth",
                         "pid": controller.snapshot.target.ownerPid,
@@ -385,6 +388,20 @@ ShellRoot {
                 root.require(!targetBrowser.isGroupCollapsed("QUICK INSPECT")
                         && targetBrowser.rows.length === expandedBrowserRows,
                     "target group did not expand back to its complete contents")
+                var processTargetIndex = targetBrowser.rows.findIndex(function(row) {
+                    return row.rowType === "target" && row.title === "xray-truth"
+                })
+                root.require(processTargetIndex >= 0,
+                    "process target was not rendered in the browser")
+                targetBrowser.focusSearch(false)
+                var processTargetRow = root.find(targetBrowser, "title", "xray-truth")
+                root.require(processTargetRow,
+                    "process target delegate was not rendered in the browser")
+                processTargetRow.clicked()
+                root.require(targetBrowser.currentIndex === processTargetIndex,
+                    "pointer target selection left the keyboard highlight on its old row")
+                root.require(processTargetRow.selected,
+                    "pointer target selection did not render its keyboard highlight")
                 targetBrowser.synchronizeQuery("xray-truth")
                 targetBrowser.focusSearch(true)
                 var searchField = root.find(targetBrowser, "objectName", "xrayTargetSearchField")

@@ -142,13 +142,26 @@ Rectangle {
     function acceptCurrent() {
         if (currentIndex < 0 || currentIndex >= rows.length
                 || rows[currentIndex].rowType !== "target") return false
-        choose(rows[currentIndex])
+        choose(rows[currentIndex], currentIndex)
         return true
     }
 
-    function choose(row) {
+    function targetIndex(query) {
+        return rows.findIndex(function(row) {
+            return row.rowType === "target" && row.query === query
+        })
+    }
+
+    function choose(row, rowIndex) {
         if (!row || !row.query) return
         keyboardQuery = row.query
+        var selectedIndex = typeof rowIndex === "number" ? rowIndex : -1
+        if (selectedIndex < 0 || selectedIndex >= rows.length
+                || rows[selectedIndex].rowType !== "target"
+                || rows[selectedIndex].query !== row.query) {
+            selectedIndex = targetIndex(row.query)
+        }
+        if (selectedIndex >= 0) currentIndex = selectedIndex
         selected(row.query)
     }
 
@@ -186,10 +199,7 @@ Rectangle {
     }
 
     function resetKeyboardSelection() {
-        var remembered = keyboardQuery
-        var rememberedIndex = rows.findIndex(function(row) {
-            return row.rowType === "target" && row.query === remembered
-        })
+        var rememberedIndex = targetIndex(keyboardQuery)
         currentIndex = rememberedIndex >= 0 ? rememberedIndex : selectableIndex(-1, 1)
     }
 
@@ -511,7 +521,7 @@ Rectangle {
                         idleColor: root.theme.transparent
                         horizontalPadding: root.theme.pad
                         textSpacing: 2
-                        onClicked: root.choose(targetItem.rowData)
+                        onClicked: root.choose(targetItem.rowData, targetItem.rowIndex)
                     }
 
                     Rectangle {
