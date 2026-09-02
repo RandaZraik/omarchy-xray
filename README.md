@@ -61,6 +61,8 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
 
 - `Ctrl+K` — choose another target
 - `Ctrl+R` — refresh now
+- `Ctrl+P` — pause or resume the inspected process
+- `Ctrl+Shift+X` — terminate the inspected process (confirmation required)
 - `Esc` — close the topmost target browser, drawer, confirmation, or X-Ray
 - Click a process — inspect that process and its subtree
 - Click `VIEW ALL` in a card — open the complete list

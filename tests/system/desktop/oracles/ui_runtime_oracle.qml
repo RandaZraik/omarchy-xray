@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtTest
 import Quickshell
 import Quickshell.Wayland
 import "ui" as XRay
@@ -18,6 +19,11 @@ ShellRoot {
     property var samplesBeforeConfigure: []
     property int requestedWidth: Number(Quickshell.env("XRAY_UI_ORACLE_WIDTH")) || 1200
     property int requestedHeight: Number(Quickshell.env("XRAY_UI_ORACLE_HEIGHT")) || 760
+
+    TestCase {
+        id: keyDriver
+        when: false
+    }
 
     function record(name, value) {
         var next = Object.assign({}, events)
@@ -515,8 +521,18 @@ ShellRoot {
                 var confirmButton = root.find(confirmation, "text", "Terminate process")
                 root.require(cancelButton && confirmButton, "confirmation actions are missing")
                 cancelButton.clicked()
-                confirmButton.clicked()
                 root.samplesBeforeConfigure = controller.performanceSamples.slice()
+                root.stage = 11
+                return
+            }
+            if (root.stage === 11) {
+                var focusedConfirm = root.find(
+                    confirmation, "text", "Terminate process"
+                )
+                if (!focusedConfirm || !focusedConfirm.activeFocus) return
+                keyDriver.keyClick(Qt.Key_Return)
+                root.require(root.events.confirmed === "terminate",
+                    "Return did not confirm the destructive action")
                 controller.configure({
                     "refreshSeconds": 1,
                     "historySeconds": 60,

@@ -9,6 +9,7 @@ Rectangle {
 
     required property var theme
     property var snapshot: ({})
+    property var actionShortcuts: ({})
     property bool offline: false
     property bool actionsEnabled: true
     readonly property bool expandedStatus: width >= theme.footerExpandedWidth
@@ -87,10 +88,14 @@ Rectangle {
             model: root.snapshot.actions || []
             delegate: ActionButton {
                 required property var modelData
+                readonly property string shortcutText: String(
+                    root.actionShortcuts[modelData.id] || ""
+                )
                 theme: root.theme
                 text: modelData.label
                 iconText: Format.icon(modelData.icon)
                 tooltipText: modelData.label
+                    + (shortcutText ? " · " + shortcutText : "")
                 enabled: root.actionsEnabled && modelData.available === true && !root.offline
                 opacity: enabled ? 1 : root.theme.disabledOpacity
                 horizontalPadding: 9

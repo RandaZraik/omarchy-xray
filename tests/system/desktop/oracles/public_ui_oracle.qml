@@ -574,7 +574,10 @@ ShellRoot {
                 var pause = root.findProperty(root.footer, "text", "Pause process")
                 root.require(pause && pause.enabled,
                     "production pause action is unavailable for the controlled child")
-                pause.clicked()
+                var pauseShortcut = root.findProperty(entry, "sequence", "Ctrl+P")
+                root.require(pauseShortcut && pauseShortcut.enabled,
+                    "production pause shortcut is unavailable for the controlled child")
+                pauseShortcut.activated()
                 root.stage = 901
                 return
             }
@@ -584,8 +587,10 @@ ShellRoot {
                         || root.controller.refreshInFlight) return
                 var resume = root.findProperty(root.footer, "text", "Resume process")
                 if (!resume || !resume.enabled) return
+                var resumeShortcut = root.findProperty(entry, "sequence", "Ctrl+P")
+                if (!resumeShortcut || !resumeShortcut.enabled) return
                 root.record("pauseAction", true)
-                resume.clicked()
+                resumeShortcut.activated()
                 root.stage = 902
                 return
             }
@@ -599,7 +604,12 @@ ShellRoot {
                 var terminate = root.findProperty(root.footer, "text", "Terminate process")
                 root.require(terminate && terminate.enabled,
                     "production terminate action is unavailable for the controlled child")
-                terminate.clicked()
+                var terminateShortcut = root.findProperty(
+                    entry, "sequence", "Ctrl+Shift+X"
+                )
+                root.require(terminateShortcut && terminateShortcut.enabled,
+                    "production terminate shortcut is unavailable for the controlled child")
+                terminateShortcut.activated()
                 root.stage = 903
                 return
             }
@@ -608,8 +618,11 @@ ShellRoot {
                 var pending = root.controller.pendingAction || {}
                 if (pending.id !== "terminate") return
                 var cancel = root.findProperty(entry, "text", "Cancel")
+                var confirm = root.findProperty(entry, "text", "Terminate process")
                 root.require(cancel && cancel.visible,
                     "production terminate action did not open its confirmation")
+                root.require(confirm && confirm.activeFocus,
+                    "production terminate confirmation did not accept Enter")
                 cancel.clicked()
                 root.stage = 904
                 return

@@ -17,6 +17,9 @@ Rectangle {
     color: root.theme.confirmationScrim
 
     Keys.onEscapePressed: root.cancelled()
+    onVisibleChanged: if (visible) Qt.callLater(function() {
+        if (root.visible) confirmButton.forceActiveFocus()
+    })
 
     MouseArea {
         anchors.fill: parent
@@ -157,9 +160,11 @@ Rectangle {
                     onClicked: root.cancelled()
                 }
                 ActionButton {
+                    id: confirmButton
                     theme: root.theme
                     variant: "danger"
                     text: root.action ? root.action.label : "Continue"
+                    tooltipText: "Press Enter to confirm"
                     onClicked: if (root.action) root.confirmed(root.action.id)
                 }
             }

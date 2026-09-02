@@ -158,6 +158,12 @@ class UiContractTests(unittest.TestCase):
             r"onClicked: root\.cancelled\(\)",
         )
 
+    def test_destructive_confirmation_focuses_the_confirm_button(self) -> None:
+        confirmation = source("ui/views/ConfirmationOverlay.qml")
+        self.assertIn("confirmButton.forceActiveFocus()", confirmation)
+        self.assertIn('id: confirmButton', confirmation)
+        self.assertIn('tooltipText: "Press Enter to confirm"', confirmation)
+
     def test_every_evidence_drawer_uses_the_full_workspace_height(self) -> None:
         overlay = source("ui/XRayOverlay.qml")
         detail = overlay[
@@ -212,13 +218,28 @@ class UiContractTests(unittest.TestCase):
         panel = overlay[overlay.index("PanelWindow {") :]
         focus_scope = panel[panel.index("FocusScope {") :]
         shortcuts = qml_blocks(overlay, "Shortcut")
-        self.assertEqual(len(shortcuts), 3)
+        self.assertEqual(len(shortcuts), 5)
         self.assertNotIn("Shortcut {", overlay[: overlay.index("PanelWindow {")])
         for sequence in ('"Escape"', '"Ctrl+K"', '"Ctrl+R"'):
             self.assertIn(f"sequence: {sequence}", focus_scope)
+        self.assertIn("sequence: root.actionShortcuts.pause", focus_scope)
+        self.assertIn("sequence: root.actionShortcuts.terminate", focus_scope)
         for shortcut in shortcuts:
             self.assertIn("context: Qt.WindowShortcut", shortcut)
             self.assertIn("enabled: panel.visible", shortcut)
+
+        self.assertIn('root.availableAction(["pause", "resume"])', focus_scope)
+        self.assertIn('root.availableAction(["terminate"])', focus_scope)
+
+    def test_process_action_tooltips_advertise_shortcuts(self) -> None:
+        overlay = source("ui/XRayOverlay.qml")
+        footer = source("ui/views/FooterBar.qml")
+        self.assertIn('"pause": "Ctrl+P"', overlay)
+        self.assertIn('"resume": "Ctrl+P"', overlay)
+        self.assertIn('"terminate": "Ctrl+Shift+X"', overlay)
+        self.assertIn("actionShortcuts: root.actionShortcuts", overlay)
+        self.assertIn('tooltipText: modelData.label', footer)
+        self.assertIn('" · " + shortcutText', footer)
 
     def test_capsule_summary_includes_every_compared_domain_and_metric(self) -> None:
         comparison = source("ui/controllers/XRayCapsules.qml")

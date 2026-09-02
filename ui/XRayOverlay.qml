@@ -19,6 +19,11 @@ Item {
     property var inspectionScreen: null
     property string currentQuery: ""
     property bool browserOpen: true
+    readonly property var actionShortcuts: ({
+        "pause": "Ctrl+P",
+        "resume": "Ctrl+P",
+        "terminate": "Ctrl+Shift+X"
+    })
     readonly property bool dashboardInteractive: controller.drawer === ""
         && !controller.pendingAction
 
@@ -44,6 +49,18 @@ Item {
 
     function showDetails(domain) {
         if (domain) controller.showDetails(domain);
+    }
+
+    function availableAction(actionIds) {
+        if (controller.offline || controller.interactionBlocked) return null;
+        return (controller.snapshot.actions || []).find(function(action) {
+            return action.available === true && actionIds.indexOf(action.id) >= 0;
+        }) || null;
+    }
+
+    function requestAvailableAction(actionIds) {
+        var action = availableAction(actionIds);
+        if (action) controller.requestAction(action);
     }
 
     function dismissTopLayer() {
@@ -156,6 +173,21 @@ Item {
                     onActivated: controller.refresh()
                 }
 
+                Shortcut {
+                    sequence: root.actionShortcuts.pause
+                    context: Qt.WindowShortcut
+                    enabled: panel.visible
+                        && !!root.availableAction(["pause", "resume"])
+                    onActivated: root.requestAvailableAction(["pause", "resume"])
+                }
+
+                Shortcut {
+                    sequence: root.actionShortcuts.terminate
+                    context: Qt.WindowShortcut
+                    enabled: panel.visible && !!root.availableAction(["terminate"])
+                    onActivated: root.requestAvailableAction(["terminate"])
+                }
+
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Escape) {
                         root.dismissTopLayer();
@@ -253,6 +285,7 @@ Item {
                                 snapshot: controller.snapshot
                                 offline: controller.offline
                                 actionsEnabled: !controller.interactionBlocked
+                                actionShortcuts: root.actionShortcuts
                                 onResetRequested: controller.resetBaseline()
                                 onActionRequested: function(action) { controller.requestAction(action); }
                             }
