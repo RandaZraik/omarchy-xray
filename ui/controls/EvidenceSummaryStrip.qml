@@ -38,6 +38,7 @@ Rectangle {
                     theme: root.theme
                     label: String(parent.modelData.label || "")
                     value: String(parent.modelData.value || "")
+                    detail: String(parent.modelData.detail || "")
                     accentColor: parent.modelData.tone
                         ? root.theme.toneColor(parent.modelData.tone)
                         : root.accentColor

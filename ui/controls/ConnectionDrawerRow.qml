@@ -62,6 +62,7 @@ Item {
             spacing: root.theme.smallGap
 
             PlainText {
+                objectName: "xraySocketLocal"
                 width: root.row.remote ? Math.max(70, (parent.width - arrow.width - parent.spacing) * 0.44) : parent.width
                 text: String(root.row.title || "")
                 color: root.theme.text
@@ -72,6 +73,7 @@ Item {
 
             PlainText {
                 id: arrow
+                objectName: "xraySocketArrow"
                 visible: !!root.row.remote
                 text: "→"
                 color: root.theme.muted
@@ -80,6 +82,7 @@ Item {
             }
 
             PlainText {
+                objectName: "xraySocketRemote"
                 visible: !!root.row.remote
                 width: Math.max(0, parent.width - x)
                 text: String(root.row.remote || "")
@@ -105,6 +108,9 @@ Item {
         anchors.right: parent.right
         anchors.rightMargin: root.theme.pad
         anchors.verticalCenter: parent.verticalCenter
+        width: root.theme.connectionStatusWidth
+        horizontalAlignment: Text.AlignRight
+        elide: Text.ElideRight
         text: String(root.row.meta || "")
         color: root.row.publicListener === true ? root.theme.danger : root.accentColor
         font.family: root.theme.dataFont

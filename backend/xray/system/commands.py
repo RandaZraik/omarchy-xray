@@ -92,6 +92,7 @@ class CommandRunner:
         argv: Sequence[str],
         *,
         timeout_seconds: float | None = None,
+        output_limit_bytes: int | None = None,
         cwd: str | None = None,
         env: Mapping[str, str] | None = None,
     ) -> CommandResult:
@@ -123,7 +124,10 @@ class CommandRunner:
         except OSError as error:
             return CommandResult(normalized, 126, "", str(error), unavailable=True)
         return self._collect(
-            process, normalized, timeout_seconds or self.timeout_seconds
+            process,
+            normalized,
+            timeout_seconds or self.timeout_seconds,
+            output_limit_bytes=output_limit_bytes,
         )
 
     @staticmethod
@@ -141,7 +145,12 @@ class CommandRunner:
         process: subprocess.Popen[bytes],
         argv: tuple[str, ...],
         timeout_seconds: float,
+        *,
+        output_limit_bytes: int | None = None,
     ) -> CommandResult:
+        byte_limit = LIMITS.command_output_bytes
+        if output_limit_bytes is not None:
+            byte_limit = max(0, min(byte_limit, output_limit_bytes))
         streams = {process.stdout: bytearray(), process.stderr: bytearray()}
         selector = selectors.DefaultSelector()
         for stream in streams:
@@ -168,7 +177,7 @@ class CommandRunner:
                         selector.unregister(stream)
                         continue
                     used = sum(len(value) for value in streams.values())
-                    available = LIMITS.command_output_bytes - used
+                    available = byte_limit - used
                     if available > 0:
                         streams[stream].extend(chunk[:available])
                     if len(chunk) > available:

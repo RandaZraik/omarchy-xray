@@ -21,6 +21,7 @@ ShellRoot {
 
     function require(value, message) {
         if (value) return
+        poll.stop()
         console.log("XRAY_LIVE_PERFORMANCE_ERROR " + message)
         controller.close()
         Qt.exit(1)
@@ -62,10 +63,18 @@ ShellRoot {
     }
 
     Timer {
+        id: poll
         interval: 30
         running: true
         repeat: true
+        property bool advancing: false
         onTriggered: {
+            // QtTest input can process another timer tick before a step finishes.
+            if (advancing) return
+            advancing = true
+            try { advance() } finally { advancing = false }
+        }
+        function advance() {
             root.require(Date.now() < root.deadline, "timeout at stage " + root.stage + ": " + controller.notice)
             if (root.stage === 0) {
                 controller.open(JSON.stringify({query: "pid:" + root.targetPid}))
@@ -94,6 +103,7 @@ ShellRoot {
                 var overview = root.findObject(drawer, "xrayPerformanceOverview")
                 root.require(overview && overview.visible && overview.assessment.context.indexOf("1 process sampled") >= 0, "live assessment did not receive measured interval")
                 console.log("XRAY_LIVE_PERFORMANCE " + JSON.stringify({pid: root.targetPid, checks: drawer.performanceCheckCount, refreshed: true, status: work.status}))
+                poll.stop()
                 controller.close()
                 Qt.quit()
             }

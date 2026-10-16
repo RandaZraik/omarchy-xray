@@ -188,6 +188,8 @@ def redact_snapshot(
                 return redact_command(value)
             return [visit(child, key) for child in value]
         if isinstance(value, str):
+            if key == "hostname" and value:
+                return "<hostname>"
             if key and _is_secret_name(key):
                 return "<redacted>"
             redacted = value.replace(home_path, "~") if home_path else value

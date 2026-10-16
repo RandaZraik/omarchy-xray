@@ -7,6 +7,7 @@ import socket
 import struct
 
 from xray.config import LIMITS
+from xray.network.packets import normalized_address
 from xray.system.procfs import ProcFs
 from xray.system.descriptors import DescriptorInventory, collect_descriptors
 from xray.processes.identity import same_user_pids
@@ -101,7 +102,7 @@ def socket_owners(
     namespaces: dict[int, str] | None = None,
 ) -> tuple[dict[tuple[str, int], list[int]], list[str]]:
     owners: dict[tuple[str, int], list[int]] = defaultdict(list)
-    descriptors = inventory or collect_descriptors(proc, pids)
+    descriptors = inventory or collect_descriptors(proc, pids, socket_only=True)
     limited = list(descriptors.limited)
     namespace_by_pid, namespace_limited = (
         (namespaces, []) if namespaces is not None else network_namespaces(proc, pids)
@@ -206,6 +207,8 @@ def owned_socket_rows(
     limited.extend(table_limited)
     for row in rows:
         row["pids"] = owners.get((str(row["networkNamespace"]), int(row["inode"])), [])
+        if str(row["protocol"]).startswith("UDP"):
+            row["packetAttributionLimited"] = bool(table_limited)
     return rows, list(dict.fromkeys(limited))
 
 
@@ -216,6 +219,7 @@ def collect_connections(
 ) -> tuple[list[dict[str, object]], list[str]]:
     socket_data, limited = owned_socket_rows(proc, pids, inventory)
     rows = [row for row in socket_data if row["pids"]]
+    _mark_udp_ambiguity(socket_data)
     rows.sort(
         key=lambda row: (
             not bool(row["listening"]),
@@ -225,6 +229,41 @@ def collect_connections(
         )
     )
     return rows, limited
+
+
+def _mark_udp_ambiguity(rows: list[dict[str, object]]) -> None:
+    # Index the whole namespace, including unselected owners. "*" aggregates
+    # a dimension; None represents a wildcard binding. IPv6 wildcards may
+    # also receive IPv4, so indistinguishable sockets remain unattributed.
+    buckets: dict[tuple[object, ...], set[int]] = defaultdict(set)
+    bindings = []
+    for row in rows:
+        if not str(row["protocol"]).startswith("UDP"):
+            continue
+        namespace_port = (row["networkNamespace"], int(row["localPort"]))
+        address = normalized_address(str(row["localAddress"]))
+        local = None if address in ("0.0.0.0", "::") else address
+        peer = (
+            (normalized_address(str(row["remoteAddress"])), int(row["remotePort"]))
+            if row["remotePort"]
+            else None
+        )
+        bindings.append((row, namespace_port, local, peer))
+        for local_key in (local, "*"):
+            for peer_key in (peer, "*"):
+                buckets[(*namespace_port, local_key, peer_key)].add(int(row["inode"]))
+    for row, namespace_port, local, peer in bindings:
+        if not row["pids"] or row.get("packetAttributionLimited"):
+            continue
+        candidates = (
+            buckets.get((*namespace_port, local_key, peer_key), set())
+            for local_key in (("*",) if local is None else (local, None))
+            for peer_key in (("*",) if peer is None else (peer, None))
+        )
+        row["packetAttributionLimited"] = any(
+            len(inodes) > 1 or inodes and int(row["inode"]) not in inodes
+            for inodes in candidates
+        )
 
 
 def owners_for_port(

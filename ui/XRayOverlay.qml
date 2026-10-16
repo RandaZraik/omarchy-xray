@@ -314,6 +314,8 @@ Item {
                     z: 41
                     width: controller.detailDomain === DetailDomains.Processes
                         ? Math.min(720, parent.width * 0.52)
+                        : controller.detailDomain === DetailDomains.Connections
+                            ? Math.min(theme.networkDrawerWidth, parent.width - theme.drawerMargin * 2)
                         : controller.detailDomain === DetailDomains.Performance
                             ? Math.min(620, parent.width - theme.drawerMargin * 2)
                         : Math.min(580, parent.width * 0.42)
@@ -327,9 +329,15 @@ Item {
                     snapshot: controller.detailSnapshot
                     domain: controller.detailDomain
                     selectionEnabled: !controller.offline
+                    networkBusy: controller.networkBusy
                     onVisibleChanged: if (visible) filterText = ""
                     onClosed: controller.dismissDrawerAfterPointer()
                     onProcessSelected: function(pid) { controller.selectProcessAfterPointer(pid); }
+                    onNetworkConfigured: function(options) { controller.configureNetwork(options); }
+                    onNetworkOwnerSelected: function(owner) {
+                        controller.selectProcessAfterPointer(Number(owner.pid), owner);
+                    }
+                    onCopyRequested: function(text) { controller.clipboardRequested(text); }
                 }
 
                 SettingsDrawer {

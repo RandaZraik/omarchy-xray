@@ -28,7 +28,7 @@ class FakeSession:
     def refresh(self, compact=False):
         return {"refreshed": True, "compact": compact}
 
-    def focus_process(self, pid):
+    def focus_process(self, pid, expected_identity=None):
         return {"pid": pid}
 
     def pick_window(self):
@@ -39,6 +39,9 @@ class FakeSession:
 
     def configure(self, values):
         return values
+
+    def configure_network(self, request):
+        return {"configured": True}
 
     def set_sampling_paused(self, paused):
         if not isinstance(paused, bool):
@@ -83,6 +86,7 @@ class ProtocolTests(unittest.TestCase):
             ("pickWindow", {}),
             ("resetBaseline", {}),
             ("configure", {"settings": {}}),
+            ("configureNetwork", {"capture": False}),
             ("setSamplingPaused", {"paused": True}),
             ("closeInspection", {}),
             ("action", {"action": "focus", "inspectionId": 7}),

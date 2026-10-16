@@ -58,6 +58,30 @@ class CapsuleService:
             for row in explanations
             if isinstance(row, dict)
         )
+        network = sanitized.get("network", {})
+        if isinstance(network, dict) and network.get("flows"):
+            totals = network.get("totals", {})
+            lines.extend(
+                [
+                    "",
+                    "Network connections:",
+                    f"Source: {'IP packet bytes' if network.get('mode') == 'packets' else 'TCP payload bytes'}",
+                    f"Observed totals: {totals.get('sentBytes', 0)} bytes uploaded; {totals.get('receivedBytes', 0)} bytes downloaded",
+                ]
+            )
+            for flow in network["flows"]:
+                if flow.get("listening"):
+                    continue
+                owners = ", ".join(
+                    f"{owner.get('name', 'Process')} (PID {owner.get('pid')})"
+                    for owner in flow.get("owners", [])
+                )
+                lines.append(
+                    f"- {owners} → {flow.get('remoteAddress')}:{flow.get('remotePort')} ({flow.get('protocol')}, {flow.get('sampleStatus')})"
+                )
+            lines.extend(
+                f"Limited: {message}" for message in network.get("limited", [])
+            )
         performance = sanitized.get("performance", {})
         checks = performance.get("checks", []) if isinstance(performance, dict) else []
         if checks:

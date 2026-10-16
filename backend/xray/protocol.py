@@ -44,10 +44,13 @@ class Protocol:
             "catalog": self.session.catalog,
             "inspect": lambda: self.session.inspect(request.get("query", "")),
             "refresh": lambda: self.session.refresh(request.get("compact") is True),
-            "focusProcess": lambda: self.session.focus_process(request.get("pid")),
+            "focusProcess": lambda: self.session.focus_process(
+                request.get("pid"), request.get("expectedIdentity")
+            ),
             "pickWindow": self.session.pick_window,
             "resetBaseline": self.session.reset_baseline,
             "configure": lambda: self.session.configure(request.get("settings")),
+            "configureNetwork": lambda: self.session.configure_network(request),
             "setSamplingPaused": lambda: self.session.set_sampling_paused(
                 request.get("paused")
             ),

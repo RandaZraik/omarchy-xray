@@ -9,6 +9,23 @@ from xray.system.procfs import ProcFs, ReadResult
 
 
 class DescriptorInventoryTests(unittest.TestCase):
+    def test_socket_only_collection_skips_file_stats_and_keeps_entry_budget(self):
+        proc = MagicMock()
+        proc.entries.return_value = (
+            [SimpleNamespace(name=str(i)) for i in range(100)],
+            "",
+        )
+        proc.readlink.side_effect = lambda pid, directory, name: ReadResult(
+            "socket:[555]" if name == "0" else "/tmp/file"
+        )
+        proc.path.return_value.stat.return_value = SimpleNamespace(st_dev=1, st_ino=555)
+        inventory = collect_descriptors(proc, [10], socket_only=True, total_limit=50)
+        self.assertEqual(len(inventory.records), 1)
+        self.assertEqual(inventory.records[0].target, "socket:[555]")
+        self.assertEqual(proc.path.return_value.stat.call_count, 2)
+        self.assertEqual(proc.readlink.call_count, 52)
+        self.assertIn("Descriptors are limited to 50 total entries", inventory.limited)
+
     def test_inventory_reads_each_descriptor_once_and_enforces_total_budget(
         self,
     ) -> None:

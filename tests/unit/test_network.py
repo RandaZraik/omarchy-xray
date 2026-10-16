@@ -1,6 +1,8 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import os
+import random
+from support.network import connection
 import unittest
 from unittest.mock import ANY, patch
 
@@ -27,6 +29,52 @@ UDP = """  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retr
 
 
 class NetworkTests(unittest.TestCase):
+    def test_udp_index_matches_exhaustive_overlap_for_wildcards_and_peers(self):
+        randomizer = random.Random(42)
+        for _ in range(40):
+            rows = [
+                connection(
+                    protocol=randomizer.choice(["UDP4", "UDP6"]),
+                    inode=i + 1,
+                    localAddress=randomizer.choice(
+                        ["0.0.0.0", "::", "127.0.0.1", "10.0.0.2"]
+                    ),
+                    remoteAddress=randomizer.choice(["0.0.0.0", "1.1.1.1", "8.8.8.8"]),
+                    remotePort=randomizer.choice([0, 53, 443]),
+                    localPort=randomizer.choice([10, 11]),
+                    pids=[42] if i % 3 else [],
+                )
+                for i in range(40)
+            ]
+            expected = {}
+            for row in rows:
+                expected[row["inode"]] = any(
+                    other["inode"] != row["inode"]
+                    and other["localPort"] == row["localPort"]
+                    and (
+                        row["localAddress"] == other["localAddress"]
+                        or row["localAddress"] in ("0.0.0.0", "::")
+                        or other["localAddress"] in ("0.0.0.0", "::")
+                    )
+                    and (
+                        not row["remotePort"]
+                        or not other["remotePort"]
+                        or (row["remotePort"], row["remoteAddress"])
+                        == (other["remotePort"], other["remoteAddress"])
+                    )
+                    for other in rows
+                )
+            with patch(
+                "xray.network.sockets.owned_socket_rows", return_value=(rows, [])
+            ):
+                result, _ = collect_connections(None, [42])
+            self.assertTrue(
+                all(
+                    row["packetAttributionLimited"] == expected[row["inode"]]
+                    for row in result
+                )
+            )
+
     def test_decodes_kernel_addresses(self) -> None:
         self.assertEqual(decode_address("0100007F", False), "127.0.0.1")
         self.assertEqual(

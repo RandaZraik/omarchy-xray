@@ -7,6 +7,13 @@ Item {
     property var samples: []
     property int windowSeconds: 60
     property bool gridVisible: true
+    property string primaryField: "cpuPercent"
+    property string secondaryField: "memoryBytes"
+    property color primaryColor: theme.trace
+    property color secondaryColor: theme.secondaryTrace
+    property real minimumPrimaryScale: theme.minimumCpuChartScale
+    property bool secondaryFromZero: false
+    property bool sharedScale: false
 
     readonly property int sampleCount: samples.length
     readonly property double latestCapturedAt: sampleCount
@@ -33,33 +40,33 @@ Item {
             var memoryMaximum = -Infinity
             for (var index = 0; index < root.samples.length; index++) {
                 var sample = root.samples[index] || {}
-                if (sample.cpuPercent !== null && sample.cpuPercent !== undefined) {
-                    var cpu = Number(sample.cpuPercent)
+                if (sample[root.primaryField] !== null && sample[root.primaryField] !== undefined) {
+                    var cpu = Number(sample[root.primaryField])
                     if (Number.isFinite(cpu)) cpuMaximum = Math.max(cpuMaximum, cpu)
                 }
-                var memory = Number(sample.memoryBytes)
-                if (Number.isFinite(memory)) {
+                var memory = Number(sample[root.secondaryField])
+                if (sample[root.secondaryField] !== null && sample[root.secondaryField] !== undefined && Number.isFinite(memory)) {
                     memoryMinimum = Math.min(memoryMinimum, memory)
                     memoryMaximum = Math.max(memoryMaximum, memory)
                 }
             }
             cpuMaximum = Math.max(
-                root.theme.minimumCpuChartScale,
+                root.minimumPrimaryScale,
                 cpuMaximum * root.theme.performanceScaleHeadroom
             )
-            root.drawSeries(
-                context, "cpuPercent", 0, cpuMaximum,
-                root.theme.trace, root.theme.performancePrimaryTraceWidth
-            )
-
             if (!Number.isFinite(memoryMinimum)) memoryMinimum = 0
             if (!Number.isFinite(memoryMaximum)) memoryMaximum = memoryMinimum
             var memoryPadding = Math.max(
                 1, memoryMaximum * root.theme.performanceMemoryPadding
             )
+            if (root.sharedScale) cpuMaximum = Math.max(cpuMaximum, memoryMaximum * root.theme.performanceScaleHeadroom)
             root.drawSeries(
-                context, "memoryBytes", memoryMinimum - memoryPadding,
-                memoryMaximum + memoryPadding, root.theme.secondaryTrace,
+                context, root.primaryField, 0, cpuMaximum,
+                root.primaryColor, root.theme.performancePrimaryTraceWidth
+            )
+            root.drawSeries(
+                context, root.secondaryField, root.secondaryFromZero ? 0 : memoryMinimum - memoryPadding,
+                root.sharedScale ? cpuMaximum : memoryMaximum + memoryPadding, root.secondaryColor,
                 root.theme.performanceSecondaryTraceWidth
             )
         }

@@ -50,6 +50,16 @@ def capsule_snapshot(**overrides) -> dict[str, object]:
 
 
 class CapsuleTests(unittest.TestCase):
+    def test_rejects_malformed_network_nested_collections(self):
+        for network in (
+            {"events": [{"owners": "bad"}]},
+            {"capture": {"interfaces": "bad"}},
+            {"capture": {"interfaceLabels": {"lo": []}}},
+            {"flows": [{"owners": [1]}]},
+        ):
+            with self.subTest(network=network), self.assertRaises(CapsuleError):
+                validate_snapshot(capsule_snapshot(network=network))
+
     def test_service_exports_opens_compares_and_reports_sanitized_evidence(
         self,
     ) -> None:

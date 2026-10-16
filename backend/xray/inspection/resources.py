@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import time
 
 from xray.config import LIMITS, TIMING
@@ -121,7 +121,11 @@ class ResourceCollector:
             and self._cached.process_identities == process_identities
             and now - self._cached.collected_at < TIMING.resource_refresh_seconds
         ):
-            return self._cached
+            connections, limited = collect_connections(self.proc, pids)
+            return replace(
+                self._cached,
+                connections=ConnectionEvidence(connections, tuple(limited)),
+            )
 
         windows = inventory.windows if inventory else None
         pipewire_rows = inventory.pipewire if inventory else None
