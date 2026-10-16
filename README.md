@@ -71,6 +71,9 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
 - Click a process — inspect that process and its subtree
 - Click `VIEW ALL` in a card — open the complete list
 
+Paste with `Ctrl+V`, `Shift+Insert`, or middle-click using `wl-clipboard`.
+Native input-method composition is unavailable; paste composed text when needed.
+
 X-Ray settings control the refresh interval, timeline window, and optional
 window preview. X-Ray works with partial system capabilities and clearly labels
 information it could not read.

@@ -6,6 +6,7 @@ import sys
 from xray.config import LIMITS
 from xray.protocol import Protocol
 from xray.session import InspectionSession
+from xray.system.clipboard import read_clipboard
 
 
 MAX_REQUEST_BYTES = 1_048_576
@@ -39,6 +40,9 @@ def read_request(stream: object) -> tuple[bytes, bool] | None:
 
 
 def main() -> int:
+    if sys.argv[1:] in (["--paste-clipboard"], ["--paste-primary"]):
+        emit(read_clipboard(primary=sys.argv[1] == "--paste-primary"))
+        return 0
     session = InspectionSession()
     protocol = Protocol(session)
     try:

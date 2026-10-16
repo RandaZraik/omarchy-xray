@@ -307,7 +307,7 @@ DrawerSurface {
             placeholderText: root.processDomain
                 ? "Filter process, command, user, or PID…"
                 : root.performanceDomain ? "Search measurements…" : "Filter this list…"
-            text: root.filterText
+            sourceText: root.filterText
             onTextEdited: root.queueFilterText(text)
             onAccepted: root.applyFilterText(text)
             onEditingFinished: root.applyFilterText(text)

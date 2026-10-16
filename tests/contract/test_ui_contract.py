@@ -54,6 +54,38 @@ class UiContractTests(unittest.TestCase):
     brittle assertions about implementation text.
     """
 
+    def test_all_editors_use_the_permanent_clipboard_guard(self) -> None:
+        guard = source("ui/controls/ThemedTextField.qml")
+        self.assertRegex(guard, r"(?m)^\s*readOnly: true\s*$")
+        self.assertNotRegex(guard, r"readOnly\s*=")
+        self.assertNotIn("clipboardText", guard)
+        consumers = []
+        for path in [
+            ROOT / "BarWidget.qml",
+            ROOT / "XRay.qml",
+            *(ROOT / "ui").rglob("*.qml"),
+        ]:
+            if path.name == "ThemedTextField.qml":
+                continue
+            text = path.read_text()
+            self.assertNotRegex(
+                text,
+                r"\b(?:TextInput|TextField|TextArea|TextEdit|SearchableDropdown|MultiSelect)\s*\{",
+                str(path),
+            )
+            for block in qml_blocks(text, "ThemedTextField"):
+                self.assertNotIn("readOnly", block, str(path))
+                consumers.append(str(path.relative_to(ROOT)))
+        self.assertCountEqual(
+            consumers,
+            [
+                "ui/views/TargetBrowser.qml",
+                "ui/views/NetworkView.qml",
+                "ui/drawers/DetailDrawer.qml",
+                "ui/drawers/CapsuleDrawer.qml",
+            ],
+        )
+
     def test_plain_text_is_the_only_rendered_text_primitive(self) -> None:
         self.assertIn("textFormat: Text.PlainText", source("ui/controls/PlainText.qml"))
         rendered = "\n".join(
@@ -161,7 +193,7 @@ class UiContractTests(unittest.TestCase):
     def test_destructive_confirmation_focuses_the_confirm_button(self) -> None:
         confirmation = source("ui/views/ConfirmationOverlay.qml")
         self.assertIn("confirmButton.forceActiveFocus()", confirmation)
-        self.assertIn('id: confirmButton', confirmation)
+        self.assertIn("id: confirmButton", confirmation)
         self.assertIn('tooltipText: "Press Enter to confirm"', confirmation)
 
     def test_every_evidence_drawer_uses_the_full_workspace_height(self) -> None:
@@ -238,7 +270,7 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('"resume": "Ctrl+P"', overlay)
         self.assertIn('"terminate": "Ctrl+Shift+X"', overlay)
         self.assertIn("actionShortcuts: root.actionShortcuts", overlay)
-        self.assertIn('tooltipText: modelData.label', footer)
+        self.assertIn("tooltipText: modelData.label", footer)
         self.assertIn('" · " + shortcutText', footer)
 
     def test_capsule_summary_includes_every_compared_domain_and_metric(self) -> None:

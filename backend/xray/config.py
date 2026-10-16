@@ -41,6 +41,7 @@ class Limits:
     capsule_depth: int = 32
     capsule_string_bytes: int = 262_144
     command_output_bytes: int = 8 * 1024 * 1024
+    clipboard_bytes: int = 16 * 1024
     response_bytes: int = 16 * 1024 * 1024
     snapshot_bytes: int = 14 * 1024 * 1024
     process_command_bytes: int = 64 * 1024
@@ -60,6 +61,7 @@ class Limits:
 @dataclass(frozen=True)
 class Timing:
     command_seconds: float = 2.0
+    clipboard_seconds: float = 2.0
     slower_command_seconds: float = 3.0
     manager_restart_seconds: float = 30.0
     journal_refresh_seconds: float = 10.0

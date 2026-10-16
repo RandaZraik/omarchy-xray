@@ -321,7 +321,7 @@ Item {
             theme: root.theme
             accentColor: root.theme.networkAccent
             placeholderText: "Search destination, process, PID, port, or protocol…"
-            text: root.search
+            sourceText: root.search
             onTextEdited: root.search = text
         }
 

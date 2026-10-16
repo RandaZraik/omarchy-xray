@@ -130,7 +130,7 @@ DrawerSurface {
                     accentColor: root.accentColor
                     width: parent.width
                     placeholderText: "Path to an .xray.zip report"
-                    text: root.capsulePath
+                    sourceText: root.capsulePath
                     onTextChanged: root.capsulePath = text
                 }
 
