@@ -47,6 +47,8 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
   supervisors, and containers.
 - Shows CPU, memory, disk activity, connections, files, locks, devices, and
   runtime security together.
+- Explains possible slowdowns with measured CPU waits, CPU-limit throttling,
+  memory pressure, memory-limit events, and I/O pressure.
 - Links noteworthy activity to its source and the next useful check.
 - Optionally captures a private local preview of the selected window.
 - Opens complete lists in focused drawers while keeping the important details
@@ -70,6 +72,16 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
 X-Ray settings control the refresh interval, timeline window, and optional
 window preview. X-Ray works with partial system capabilities and clearly labels
 information it could not read.
+
+Click **Why slow?** for a plain-language assessment of CPU, memory, and I/O clues,
+plus what could not be measured. The **Measurements** tab lists searchable
+checks; expand a check to read its counters and sources. Rate checks need
+two samples; unavailable counters stay labeled unavailable. Each check identifies
+whether it covers the selected processes, a shared cgroup, or the host, so activity
+from other applications is not mistaken for proof about yours. Scheduler wait
+measurements require kernel accounting to be enabled; X-Ray does not change it.
+Pressure intervals are estimates; the kernel's 10-second average is labeled
+separately. A quiet sample does not establish that the app is healthy.
 
 ## Privacy
 

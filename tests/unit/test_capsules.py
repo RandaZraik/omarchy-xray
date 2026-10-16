@@ -81,6 +81,40 @@ class CapsuleTests(unittest.TestCase):
         self.assertIn("GPU: unavailable", report)
         self.assertNotIn(str(Path.home()), report)
 
+    def test_performance_report_and_capsule_redact_all_evidence_fields(self) -> None:
+        private = str(Path.home() / "private-project")
+        snapshot = capsule_snapshot(
+            performance={
+                "status": "limited",
+                "observed": 1,
+                "summary": private,
+                "limited": [private],
+                "checks": [
+                    {
+                        "id": private,
+                        "title": "CPU-limit throttling",
+                        "why": private,
+                        "status": "Observed",
+                        "scope": private,
+                        "evidence": [private],
+                        "nextStep": private,
+                        "measurements": {"seconds": 2, "nr_throttled": 10},
+                    }
+                ],
+            }
+        )
+        with TemporaryDirectory() as directory:
+            path = export_capsule(snapshot, Path(directory))
+            loaded = load_capsule(path)["snapshot"]
+        report = CapsuleService.report(snapshot)["text"]
+        self.assertNotIn(str(Path.home()), json.dumps(loaded))
+        self.assertNotIn(str(Path.home()), report)
+        self.assertIn("[Observed] CPU-limit throttling", report)
+        self.assertEqual(
+            loaded["performance"]["checks"][0]["measurements"],
+            {"seconds": 2, "nr_throttled": 10},
+        )
+
     def test_default_export_directory_honors_xdg_user_dirs_and_falls_back(self) -> None:
         with (
             TemporaryDirectory() as directory,
@@ -205,6 +239,18 @@ class CapsuleTests(unittest.TestCase):
             ("security.limits", {"security": {"limits": {}}}),
             ("security.limits", {"security": {"limits": [None]}}),
             ("explanations.evidence", {"explanations": [{"evidence": {}}]}),
+            ("performance", {"performance": []}),
+            ("performance.checks", {"performance": {"checks": {}}}),
+            ("performance.checks", {"performance": {"checks": [None]}}),
+            ("performance.limited", {"performance": {"checks": [], "limited": {}}}),
+            (
+                "performance.checks.evidence",
+                {"performance": {"checks": [{"evidence": {}}]}},
+            ),
+            (
+                "performance.checks.measurements",
+                {"performance": {"checks": [{"measurements": []}]}},
+            ),
         )
         for label, override in invalid_nested:
             with (

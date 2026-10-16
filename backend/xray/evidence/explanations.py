@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Callable
 
+from xray.evidence.findings import explanation as _explanation
+
 
 def _rows(values: object) -> Iterator[dict[str, object]]:
     if isinstance(values, list):
@@ -25,35 +27,17 @@ def _match_preview(
     return count, preview
 
 
-def _explanation(
-    *,
-    identifier: str,
-    tone: str,
-    title: str,
-    why: str,
-    evidence: list[str],
-    next_step: str,
-    domain: str,
-    evidence_count: int | None = None,
-    status: str = "Found",
-) -> dict[str, object]:
-    return {
-        "id": identifier,
-        "tone": tone,
-        "status": status,
-        "title": title,
-        "why": why,
-        "evidence": evidence,
-        "evidenceCount": evidence_count
-        if evidence_count is not None
-        else len(evidence),
-        "nextStep": next_step,
-        "domain": domain,
-    }
-
-
 def derive_explanations(snapshot: dict[str, object]) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
+    performance = snapshot.get("performance", {})
+    rows = (
+        [
+            dict(check)
+            for check in _rows(performance.get("checks", []))
+            if check.get("tone") == "attention"
+        ]
+        if isinstance(performance, dict)
+        else []
+    )
     connections = snapshot.get("connections", [])
     files = snapshot.get("files", [])
     locks = snapshot.get("locks", [])

@@ -248,8 +248,20 @@ class LiveTruthTests(unittest.TestCase):
         )
 
     def test_03b_performance_and_security_cards_match_procfs(self) -> None:
-        initial = self.inspect_fixture()
         pid = int(self.truth["pid"])
+
+        def write_counter() -> int:
+            return int(
+                next(
+                    line.partition(":")[2]
+                    for line in Path(f"/proc/{pid}/io").read_text().splitlines()
+                    if line.startswith("write_bytes:")
+                )
+            )
+
+        first_io_start = time.monotonic()
+        first_io_before = write_counter()
+        initial = self.inspect_fixture()
         descriptor_before = {
             (int(row["pid"]), int(row["fd"]), str(row["target"])): descriptor_info(
                 int(row["pid"]), int(row["fd"])
@@ -261,11 +273,13 @@ class LiveTruthTests(unittest.TestCase):
         total_cpu_before = system_cpu_ticks()
         sampled_before = time.monotonic()
         time.sleep(0.35)
+        second_io_before = write_counter()
+        second_io_start = time.monotonic()
         snapshot = self.require_ok(self.backend.request("refresh"))
-        sampled_after = time.monotonic()
         total_cpu_after = system_cpu_ticks()
         stat_after = Path(f"/proc/{pid}/stat").read_text()
         io_after = Path(f"/proc/{pid}/io").read_text()
+        last_io_end = time.monotonic()
         status = proc_status(pid)
         root = next(row for row in snapshot["processes"] if row["pid"] == pid)
         self.assertEqual(root["uid"], int(status["Uid"].split()[0]))
@@ -318,13 +332,17 @@ class LiveTruthTests(unittest.TestCase):
         self.assertGreater(
             io_values_after["write_bytes"], io_values_before["write_bytes"]
         )
-        expected_write_rate = (
-            io_values_after["write_bytes"] - io_values_before["write_bytes"]
-        ) / (sampled_after - sampled_before)
-        self.assertLessEqual(
-            abs(root["writeBytesPerSecond"] - expected_write_rate),
-            max(16_384, expected_write_rate * 0.25),
+        # Bound both backend reads independently. Comparing with a different
+        # interval plus a fixed percentage tolerance is unreliable when the
+        # initial resource scan is slower than a refresh or the writer bursts.
+        minimum_rate = (second_io_before - io_values_before["write_bytes"]) / (
+            last_io_end - first_io_start
         )
+        maximum_rate = (io_values_after["write_bytes"] - first_io_before) / (
+            second_io_start - sampled_before
+        )
+        self.assertGreaterEqual(root["writeBytesPerSecond"], minimum_rate - 1)
+        self.assertLessEqual(root["writeBytesPerSecond"], maximum_rate + 1)
 
         security = snapshot["security"]
         raw_security = proc_security(pid)

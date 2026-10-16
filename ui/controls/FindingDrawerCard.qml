@@ -13,11 +13,13 @@ Item {
         0, evidenceCount - evidenceRows.length
     )
     readonly property bool attention: row.tone === "attention"
+    readonly property bool detailed: row.domain === "performance"
     readonly property color signalColor: attention ? theme.danger : accentColor
     readonly property int evidenceHeight: evidenceRows.length
         * theme.drawerFindingEvidenceHeight
         + (hiddenEvidenceCount > 0 ? theme.drawerFindingEvidenceHeight : 0)
-    implicitHeight: theme.drawerFindingBaseHeight + evidenceHeight
+    implicitHeight: detailed ? content.implicitHeight + theme.pad + theme.smallGap
+        : theme.drawerFindingBaseHeight + evidenceHeight
         + (row.nextStep ? theme.drawerFindingNextHeight : 0) + theme.smallGap
     height: implicitHeight
 
@@ -33,6 +35,7 @@ Item {
     }
 
     Column {
+        id: content
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
@@ -72,7 +75,7 @@ Item {
             font.family: root.theme.bodyFont
             font.pixelSize: root.theme.captionFontSize
             wrapMode: Text.WordWrap
-            maximumLineCount: 2
+            maximumLineCount: root.detailed ? 2147483647 : 2
             elide: Text.ElideRight
         }
 
@@ -83,7 +86,9 @@ Item {
                 required property string modelData
                 required property int index
                 width: parent.width
-                height: root.theme.drawerFindingEvidenceHeight
+                height: root.detailed
+                    ? Math.max(root.theme.drawerFindingEvidenceHeight, evidenceText.implicitHeight)
+                    : root.theme.drawerFindingEvidenceHeight
                 spacing: root.theme.smallGap
 
                 PlainText {
@@ -96,6 +101,7 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                 }
                 PlainText {
+                    id: evidenceText
                     width: Math.max(0, parent.width - x)
                     height: parent.height
                     text: String(modelData).replace(/\s+/g, " ")
@@ -104,6 +110,7 @@ Item {
                     font.pixelSize: root.theme.captionFontSize
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideMiddle
+                    wrapMode: root.detailed ? Text.Wrap : Text.NoWrap
                 }
             }
         }
@@ -124,7 +131,9 @@ Item {
         Item {
             visible: !!root.row.nextStep
             width: parent.width
-            height: visible ? root.theme.drawerFindingNextHeight : 0
+            height: visible ? root.detailed
+                ? nextStepText.implicitHeight + root.theme.smallGap * 2
+                : root.theme.drawerFindingNextHeight : 0
 
             Rectangle {
                 anchors.left: parent.left
@@ -136,6 +145,7 @@ Item {
             }
 
             PlainText {
+                id: nextStepText
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
@@ -144,6 +154,7 @@ Item {
                 font.family: root.theme.bodyFont
                 font.pixelSize: root.theme.captionFontSize
                 elide: Text.ElideRight
+                wrapMode: root.detailed ? Text.WordWrap : Text.NoWrap
             }
         }
     }

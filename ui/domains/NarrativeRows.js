@@ -34,29 +34,7 @@ function cause(snapshot) {
 }
 
 function explanations(snapshot) {
-    var rows = []
-    ;(snapshot.explanations || []).forEach(function(explanation) {
-        rows.push({
-            rowType: "finding",
-            section: findingSection(explanation.domain),
-            findingId: explanation.id || explanation.title,
-            title: explanation.title || "Finding",
-            subtitle: explanation.why || "",
-            meta: explanation.tone === "attention" ? "ATTENTION" : "OBSERVED",
-            tone: explanation.tone || "neutral",
-            domain: explanation.domain || "",
-            evidence: explanation.evidence || [],
-            evidenceCount: Number(
-                explanation.evidenceCount === undefined
-                    ? (explanation.evidence || []).length
-                    : explanation.evidenceCount
-            ),
-            nextStep: explanation.nextStep || "",
-            searchText: [explanation.title, explanation.why,
-                (explanation.evidence || []).join(" "), explanation.nextStep,
-                explanation.domain, explanation.status].join(" ")
-        })
-    })
+    var rows = findingRows(snapshot.explanations || [])
     ;(snapshot.timeline || []).forEach(function(event) {
         rows.push({
             rowType: "timeline",
@@ -70,6 +48,44 @@ function explanations(snapshot) {
     return rows
 }
 
+function findingRows(findings, performance) {
+    return findings.map(function(explanation, index) {
+        return {
+            rowType: "finding",
+            section: performance ? explanation.section || "coverage" : findingSection(explanation.domain),
+            findingId: explanation.id || (performance ? "performance-record-" + index : explanation.title),
+            title: explanation.title || "Finding",
+            subtitle: explanation.why || "",
+            meta: performance ? String(explanation.status || "Unavailable").toUpperCase()
+                : explanation.tone === "attention" ? "ATTENTION" : "OBSERVED",
+            tone: explanation.tone || "neutral",
+            domain: explanation.domain || "",
+            evidence: explanation.evidence || [],
+            evidenceCount: Number(
+                explanation.evidenceCount === undefined
+                    ? (explanation.evidence || []).length
+                    : explanation.evidenceCount
+            ),
+            nextStep: explanation.nextStep || "",
+            scope: explanation.scope || "",
+            searchText: [explanation.title, explanation.why,
+                (explanation.evidence || []).join(" "), explanation.nextStep,
+                explanation.domain, explanation.status, explanation.scope].join(" ")
+        }
+    })
+}
+
+function performance(snapshot) {
+    var checks = (snapshot.performance || {}).checks || []
+    if (!checks.length) checks = [{
+        id: "performance-unavailable", section: "coverage", status: "Unavailable",
+        title: "Performance evidence was not recorded",
+        why: "Open a live target and allow two samples to measure pressure and delays.",
+        evidence: [], domain: "performance"
+    }]
+    return findingRows(checks, true)
+}
+
 function findingSection(domain) {
     var sections = {
         "connections": "network",
@@ -77,7 +93,8 @@ function findingSection(domain) {
         "devices": "devices",
         "runtime": "runtime",
         "logs": "logs",
-        "coverage": "coverage"
+        "coverage": "coverage",
+        "performance": "performance"
     }
     return sections[String(domain || "")] || "other"
 }
