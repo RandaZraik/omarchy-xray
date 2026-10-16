@@ -430,7 +430,14 @@ ShellRoot {
                 var card = root.named(spec.card)
                 root.require(root.detailDrawer.domain === spec.domain,
                     spec.card + " opened the wrong production drilldown")
-                root.require(root.detailDrawer.allRows.length === Number(card.detailsCount),
+                var drawerRows = root.detailDrawer.allRows
+                if (spec.domain === "connections") {
+                    var networkView = root.named("xrayNetworkView")
+                    root.require(networkView && networkView.visible, "connection map unavailable")
+                    networkView.tab = "sockets"
+                    drawerRows = networkView.socketRows
+                }
+                root.require(drawerRows.length === Number(card.detailsCount),
                     spec.card + " drilldown disagrees with its card count")
                 if (spec.domain === "processes") {
                     var processDrawerHasChild = root.detailDrawer.allRows.some(
@@ -514,13 +521,13 @@ ShellRoot {
                     }
                 }
                 if (spec.domain === "connections") {
-                    var hasListener = root.detailDrawer.allRows.some(function(row) {
+                    var hasListener = drawerRows.some(function(row) {
                         return String(row.title).indexOf(String(root.expectedPort)) >= 0
                     })
                     if (!hasListener)
                         console.log("XRAY_CONNECTION_DRAWER_STATE " + JSON.stringify({
                             "expectedPort": root.expectedPort,
-                            "detailRows": root.detailDrawer.allRows,
+                            "detailRows": drawerRows,
                             "detailConnections": root.controller.detailSnapshot.connections || [],
                             "liveConnections": root.controller.snapshot.connections || [],
                             "target": root.controller.snapshot.target || {}

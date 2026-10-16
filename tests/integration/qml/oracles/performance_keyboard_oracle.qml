@@ -83,7 +83,14 @@ ShellRoot {
         interval: 40
         running: true
         repeat: true
+        property bool advancing: false
         onTriggered: {
+            // QtTest key events can process another timer tick before a step finishes.
+            if (advancing) return
+            advancing = true
+            try { advance() } finally { advancing = false }
+        }
+        function advance() {
             root.attempts++
             root.require(root.attempts < 180, "timeout at stage " + root.stage)
             if (root.stage === 0) {

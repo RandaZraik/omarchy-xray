@@ -9,6 +9,9 @@ _DOMAIN_BUDGETS = (
     (("processes",), 3 * 1024 * 1024, "processes", "Process rows"),
     (("files",), 4 * 1024 * 1024, "files", "Open file rows"),
     (("connections",), 1024 * 1024, "connections", "Connection rows"),
+    (("network", "flows"), 1024 * 1024, "connections", "Network flow history"),
+    (("network", "events"), 128 * 1024, "connections", "Network events"),
+    (("network", "samples"), 64 * 1024, "connections", "Network samples"),
     (("locks",), 512 * 1024, "files", "File lock rows"),
     (("logs",), 512 * 1024, "runtime", "Journal rows"),
     (("explanations",), 512 * 1024, "runtime", "Explanation rows"),
@@ -78,6 +81,8 @@ def _set_rows(
         current = child
     if path == ("performance", "checks"):
         current.setdefault("originalCheckCount", len(current.get("checks", [])))
+    if path[:1] == ("network",):
+        current["historyTruncated"] = True
     current[path[-1]] = rows
 
 

@@ -107,6 +107,31 @@ def _validate_domains(snapshot: dict[str, object]) -> None:
 
 
 def _validate_nested_domains(snapshot: dict[str, object]) -> None:
+    if "network" in snapshot:
+        network = snapshot["network"]
+        if not isinstance(network, dict):
+            raise CapsuleError("Capsule snapshot has an invalid network domain")
+        for key in ("flows", "events", "samples"):
+            if not _dict_list(network.get(key, [])):
+                raise CapsuleError(f"Capsule snapshot has invalid network.{key}")
+        for key in ("capture", "totals"):
+            if not isinstance(network.get(key, {}), dict):
+                raise CapsuleError(f"Capsule snapshot has invalid network.{key}")
+        for row in network.get("flows", []) + network.get("events", []):
+            if not _dict_list(row.get("owners", [])):
+                raise CapsuleError("Capsule snapshot has invalid network owners")
+        available = network.get("capture", {}).get("interfaces", [])
+        if not isinstance(available, list) or not all(
+            isinstance(name, str) for name in available
+        ):
+            raise CapsuleError("Capsule snapshot has invalid network interfaces")
+        labels = network.get("capture", {}).get("interfaceLabels", {})
+        if not isinstance(labels, dict) or not all(
+            isinstance(label, str) for label in labels.values()
+        ):
+            raise CapsuleError("Capsule snapshot has invalid network interface labels")
+        if not isinstance(network.get("limited", []), list):
+            raise CapsuleError("Capsule snapshot has invalid network.limited")
     if "performance" in snapshot:
         performance = snapshot["performance"]
         if not isinstance(performance, dict) or not _dict_list(

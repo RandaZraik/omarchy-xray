@@ -57,7 +57,9 @@ class ResourceCollectorTests(unittest.TestCase):
         self.assertEqual(collector._logs_limited, "Journal entries are unavailable")
         self.assertEqual(collector._logs_scope, "system")
 
-    def test_compact_refresh_reuses_recent_resource_evidence(self) -> None:
+    def test_compact_refresh_reuses_slow_resources_but_refreshes_connections(
+        self,
+    ) -> None:
         collector = self.collector()
         cached = self.evidence((41, 100, 1000))
         collector._cached = cached
@@ -77,6 +79,10 @@ class ResourceCollectorTests(unittest.TestCase):
                 "xray.inspection.resources.collect_descriptors",
                 side_effect=AssertionError("resource evidence should be reused"),
             ),
+            patch(
+                "xray.inspection.resources.collect_connections",
+                return_value=([{"inode": 99}], []),
+            ) as connections,
         ):
             reused = collector.collect(
                 target,
@@ -89,7 +95,11 @@ class ResourceCollectorTests(unittest.TestCase):
                 force=False,
             )
 
-        self.assertIs(reused, cached)
+        self.assertIs(reused.files, cached.files)
+        self.assertIs(reused.devices, cached.devices)
+        self.assertIs(reused.runtime, cached.runtime)
+        self.assertEqual(reused.connections.rows, [{"inode": 99}])
+        connections.assert_called_once_with(collector.proc, [41])
 
     def test_cache_rejects_reused_numeric_pid_with_new_identity(self) -> None:
         collector = self.collector()

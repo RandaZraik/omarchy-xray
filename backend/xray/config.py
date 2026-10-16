@@ -26,6 +26,14 @@ class Limits:
     catalog_string_bytes: int = 4096
     network_namespaces: int = 16
     socket_table_bytes: int = 256 * 1024
+    network_flows: int = 1024
+    network_events: int = 240
+    network_samples: int = 120
+    network_packet_flows: int = 4096
+    network_name_cache: int = 256
+    network_interface_labels: int = 128
+    network_diag_bytes: int = 4 * 1024 * 1024
+    network_capture_buffer: int = 2 * 1024 * 1024
     cause_nodes: int = 24
     capsule_bytes: int = 16 * 1024 * 1024
     capsule_json_bytes: int = 4 * 1024 * 1024
@@ -65,6 +73,10 @@ class Timing:
     window_focus_seconds: float = 0.5
     window_focus_poll_seconds: float = 0.02
     stale_preview_seconds: float = 24 * 60 * 60
+    network_diag_seconds: float = 0.25
+    network_capture_start_seconds: float = 5.0
+    network_name_seconds: float = 1.0
+    network_name_ttl_seconds: float = 300.0
 
 
 LIMITS = Limits()

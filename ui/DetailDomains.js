@@ -32,7 +32,7 @@ var descriptors = {
     },
     "connections": {
         "title": "Connections", "tone": "network", "rowType": "connection",
-        "patchKeys": ["connections"], "fallbackSection": "active",
+        "patchKeys": ["connections", "network", "processes", "samplingPaused"], "fallbackSection": "active",
         "sections": [
             {"id": "exposed", "label": "ALL-INTERFACE LISTENERS", "icon": "warning", "tone": "danger"},
             {"id": "network", "label": "NETWORK-BOUND LISTENERS", "icon": "network"},

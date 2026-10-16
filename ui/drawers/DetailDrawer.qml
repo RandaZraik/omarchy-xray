@@ -16,6 +16,8 @@ DrawerSurface {
     property bool selectionEnabled: true
     readonly property bool processDomain: domain === DetailDomains.Processes
     readonly property bool performanceDomain: domain === DetailDomains.Performance
+    readonly property bool connectionDomain: domain === DetailDomains.Connections
+    property bool networkBusy: false
     property bool technicalDetails: false
     property var expandedChecks: ({})
     property string focusedPerformanceRow: ""
@@ -25,7 +27,10 @@ DrawerSurface {
     property var collapsedSections: ({})
     signal closed()
     signal processSelected(int pid)
-    readonly property var rawRows: visible && (!performanceDomain || technicalDetails)
+    signal networkConfigured(var options)
+    signal networkOwnerSelected(var owner)
+    signal copyRequested(string text)
+    readonly property var rawRows: visible && !connectionDomain && (!performanceDomain || technicalDetails)
         ? DetailDomains.rows(domain, snapshot) : []
     readonly property var allRows: rawRows
     readonly property var searchRows: processDomain ? rawRows
@@ -41,7 +46,7 @@ DrawerSurface {
             filterText.trim() !== ""
         )
     readonly property int visibleRowCount: processDomain ? 0 : displayRows.length
-    readonly property var summaryStats: visible && !performanceDomain
+    readonly property var summaryStats: visible && !performanceDomain && !connectionDomain
         ? DetailDomains.summary(domain, snapshot, searchRows) : []
     onDisplayRowsChanged: {
         if (!performanceDomain || !evidenceList || !evidenceList.activeFocus || !focusedPerformanceRow) return
@@ -183,15 +188,6 @@ DrawerSurface {
     }
 
     Component {
-        id: connectionRowComponent
-        ConnectionDrawerRow {
-            theme: parent.themeValue
-            row: parent.rowData
-            accentColor: parent.rowAccentValue
-        }
-    }
-
-    Component {
         id: fileRowComponent
         FileDrawerRow {
             theme: parent.themeValue
@@ -275,7 +271,8 @@ DrawerSurface {
             accentColor: root.accentColor
             eyebrow: ""
             title: DetailDomains.title(root.domain)
-            detail: root.performanceDomain ? "Measurements, clues, and limits" : root.headerDetail()
+            detail: root.performanceDomain ? "Measurements, clues, and limits"
+                : root.connectionDomain ? String((root.snapshot.target || {}).label || "Selected app") + " · processes → destinations" : root.headerDetail()
             onClosed: root.closed()
         }
 
@@ -303,7 +300,7 @@ DrawerSurface {
 
         ThemedTextField {
             id: filterField
-            visible: !root.performanceDomain || root.technicalDetails
+            visible: !root.connectionDomain && (!root.performanceDomain || root.technicalDetails)
             theme: root.theme
             accentColor: root.accentColor
             width: parent.width
@@ -362,9 +359,22 @@ DrawerSurface {
             performance: visible ? root.snapshot.performance || ({}) : ({})
         }
 
+        Views.NetworkView {
+            visible: root.connectionDomain
+            width: parent.width
+            height: parent.height - y
+            theme: root.theme
+            snapshot: visible ? root.snapshot : ({})
+            liveEnabled: root.selectionEnabled
+            busy: root.networkBusy
+            onConfigured: function(options) { root.networkConfigured(options); }
+            onOwnerSelected: function(owner) { root.networkOwnerSelected(owner); }
+            onCopyRequested: function(text) { root.copyRequested(text); }
+        }
+
         ListView {
             id: evidenceList
-            visible: !root.processDomain && (!root.performanceDomain || root.technicalDetails)
+            visible: !root.processDomain && !root.connectionDomain && (!root.performanceDomain || root.technicalDetails)
             width: parent.width
             height: parent.height - y
             model: visible ? root.displayRows : []
@@ -401,7 +411,6 @@ DrawerSurface {
                 sourceComponent: {
                     if (modelData.rowType === "section") return root.performanceDomain ? performanceSectionComponent : sectionRowComponent
                     if (root.performanceDomain) return performanceRowComponent
-                    if (modelData.rowType === "connection") return connectionRowComponent
                     if (modelData.rowType === "fileGroup" || modelData.rowType === "lock")
                         return fileRowComponent
                     if (modelData.rowType === "device") return deviceRowComponent

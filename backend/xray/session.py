@@ -133,7 +133,9 @@ class InspectionSession:
     def inspect(self, query: object) -> dict[str, object]:
         return self._inspect_spec(parse_query(query))
 
-    def focus_process(self, pid: object) -> dict[str, object]:
+    def focus_process(
+        self, pid: object, expected_identity: object = None
+    ) -> dict[str, object]:
         if isinstance(pid, bool) or not (
             isinstance(pid, int) or isinstance(pid, str) and pid.isdigit()
         ):
@@ -144,6 +146,15 @@ class InspectionSession:
             raise ValueError("pid must be an integer") from error
         if normalized <= 0:
             raise ValueError("pid must be a positive integer")
+        if expected_identity is not None:
+            if not isinstance(expected_identity, dict):
+                raise ValueError("Expected process identity must be an object")
+            expected = ProcessIdentity.from_row(expected_identity)
+            if (
+                expected.pid != normalized
+                or identity_for(self.proc, normalized) != expected
+            ):
+                raise ValueError("The connection's owning process ended or changed")
         return self._inspect_spec(
             TargetSpec("process", str(normalized), f"Process {normalized}")
         )
@@ -251,9 +262,7 @@ class InspectionSession:
             context["previewError"] = ""
             snapshot["context"] = context
         stable_domains = (
-            ("connections", "files", "pipewire", "inhibitors", "runtime")
-            if resources_reused
-            else ()
+            ("files", "pipewire", "inhibitors", "runtime") if resources_reused else ()
         )
         snapshot["changes"], timeline = self.history.track(snapshot, stable_domains)
         snapshot["timeline"] = self._timeline_window(timeline)
@@ -286,11 +295,34 @@ class InspectionSession:
             raise ValueError("paused must be a boolean")
         next_state = paused
         if next_state != self.sampling_paused:
+            self.collector.network.pause(next_state)
             self.collector.reset_sampling_baselines()
         self.sampling_paused = next_state
         if self.snapshot is not None:
             self.snapshot["samplingPaused"] = self.sampling_paused
         return {"samplingPaused": self.sampling_paused}
+
+    def configure_network(self, request: dict[str, object]) -> dict[str, object]:
+        if not self.resolved or not self.snapshot:
+            raise ValueError(
+                "Choose a live target before configuring network measurements"
+            )
+        if request.get("inspectionId") != self._inspection_id:
+            raise ValueError("The selected target changed")
+        if self.sampling_paused:
+            raise ValueError(
+                "Resume live sampling before changing network measurements"
+            )
+        for key in ("capture", "resolveNames"):
+            if key in request and not isinstance(request[key], bool):
+                raise ValueError(f"{key} must be a boolean")
+        interface = request.get("interface", "")
+        if not isinstance(interface, str):
+            raise ValueError("interface must be a string")
+        self.collector.network.configure(
+            request.get("capture"), interface, request.get("resolveNames")
+        )
+        return self.refresh()
 
     def perform_action(
         self, action: object, expected_inspection_id: object = None
@@ -388,7 +420,9 @@ class InspectionSession:
         return self.capsules.export(self.snapshot, directory)
 
     def open_capsule(self, path: object) -> dict[str, object]:
-        return self.capsules.open(path)
+        capsule = self.capsules.open(path)
+        self.collector.network.close()
+        return capsule
 
     def compare_with_capsule(self, path: object) -> dict[str, object]:
         if not self.snapshot:
@@ -477,4 +511,5 @@ class InspectionSession:
         return result
 
     def close(self) -> None:
+        self.collector.network.close()
         self.desktop.close()

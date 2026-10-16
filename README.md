@@ -47,6 +47,8 @@ Click the X-Ray icon in the Omarchy bar and choose what to inspect:
   supervisors, and containers.
 - Shows CPU, memory, disk activity, connections, files, locks, devices, and
   runtime security together.
+- Maps processes to network destinations in Connections, with upload/download
+  rates, socket details, connection history, and direct owner inspection.
 - Explains possible slowdowns with measured CPU waits, CPU-limit throttling,
   memory pressure, memory-limit events, and I/O pressure.
 - Links noteworthy activity to its source and the next useful check.
@@ -80,6 +82,9 @@ Environment variable names may be shown, but their values are never retained,
 displayed, or exported.
 Optional window previews stay in a private temporary directory and are excluded
 from exported reports. Reports are redacted before export or copy.
+Optional packet capture uses existing capture permissions and retains counters,
+not packet contents. Optional destination-name lookups query your configured DNS
+resolver; reverse names are hints, not proof of which website an app requested.
 
 Omarchy's standard tools provide more detail when available, including
 `hyprctl`, `grim`, `slurp`, `pw-dump`, `journalctl`, `systemctl`, container

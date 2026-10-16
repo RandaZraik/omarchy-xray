@@ -46,6 +46,7 @@ def collect_descriptors(
     *,
     limit_per_process: int = LIMITS.descriptors_per_process,
     total_limit: int = LIMITS.descriptors_total,
+    socket_only: bool = False,
 ) -> DescriptorInventory:
     records: list[Descriptor] = []
     limited: list[str] = []
@@ -53,6 +54,7 @@ def collect_descriptors(
     unavailable_pids: set[int] = set()
     readlink_limited_pids: set[int] = set()
     exhausted = False
+    visited = 0
     for pid in pids:
         entries, error = proc.entries(pid, "fd", limit=limit_per_process + 1)
         if error == "permission denied":
@@ -68,9 +70,17 @@ def collect_descriptors(
                 f"Process {pid} descriptors are limited to {limit_per_process}"
             )
         for entry in entries[:limit_per_process]:
-            if len(records) >= total_limit:
+            if visited >= total_limit:
                 exhausted = True
                 break
+            visited += 1
+            if socket_only:
+                candidate = proc.readlink(pid, "fd", entry.name)
+                if not candidate.available:
+                    readlink_limited_pids.add(pid)
+                    continue
+                if not candidate.value.startswith("socket:["):
+                    continue
             path = proc.path(pid, "fd", entry.name)
             try:
                 before = path.stat()

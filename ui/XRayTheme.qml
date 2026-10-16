@@ -205,6 +205,14 @@ QtObject {
     readonly property int drawerSummaryHeight: 52
     readonly property int drawerSectionRowHeight: 32
     readonly property int drawerConnectionRowHeight: 50
+    readonly property int connectionStatusWidth: 132
+    readonly property int evidenceFactLabelWidth: 112
+    readonly property int networkDrawerWidth: 820
+    readonly property int networkFlowRowHeight: 54
+    readonly property real networkOwnerColumn: 0.24
+    readonly property int networkLinkWidth: 32
+    readonly property int networkRateColumnWidth: 112
+    readonly property int networkPlotHeight: 48
     readonly property int drawerResourceRowHeight: 52
     readonly property int drawerCauseRowHeight: 54
     readonly property int drawerFindingBaseHeight: 65

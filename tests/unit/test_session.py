@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 import time
 from types import SimpleNamespace
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+from xray.processes.identity import ProcessIdentity
 
 from xray.session import InspectionSession
 from xray.targets.query import TargetSpec
@@ -44,6 +45,23 @@ def refresh_session(target: ResolvedTarget) -> InspectionSession:
 
 
 class SessionTests(unittest.TestCase):
+    def test_network_owner_navigation_rejects_reused_pid(self):
+        session = object.__new__(InspectionSession)
+        session.proc = MagicMock()
+        session._inspect_spec = MagicMock()
+        expected = {"pid": 41, "startTime": 100, "uid": 1000}
+        with patch(
+            "xray.session.identity_for", return_value=ProcessIdentity(41, 101, 1000)
+        ):
+            with self.assertRaisesRegex(ValueError, "ended or changed"):
+                session.focus_process(41, expected)
+        session._inspect_spec.assert_not_called()
+        with patch(
+            "xray.session.identity_for", return_value=ProcessIdentity(41, 100, 1000)
+        ):
+            session.focus_process(41, expected)
+        session._inspect_spec.assert_called_once()
+
     def test_focus_process_rejects_boolean_and_non_positive_pids(self) -> None:
         session = object.__new__(InspectionSession)
         for value in (True, False, 0, -1, "0", "-1", "not-a-pid"):
@@ -131,7 +149,7 @@ class SessionTests(unittest.TestCase):
         session._collect.assert_called_once_with(None, refresh_resources=False)
         session.history.track.assert_called_once_with(
             session.snapshot,
-            ("connections", "files", "pipewire", "inhibitors", "runtime"),
+            ("files", "pipewire", "inhibitors", "runtime"),
         )
 
     def test_recycled_numeric_pid_forces_a_fresh_target_session(self) -> None:

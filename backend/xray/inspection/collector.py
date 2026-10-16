@@ -10,6 +10,7 @@ from xray.evidence.slowdown import diagnose
 from xray.files.packages import PackageIndex
 from xray.inspection.coverage import build_coverage
 from xray.inspection.resources import ResourceCollector
+from xray.network.traffic import NetworkMonitor
 from xray.processes.activity import ActivitySampler
 from xray.processes.collector import ProcessMetadataCache, collect_tree
 from xray.processes.identity import ProcessIdentity, identity_for
@@ -33,14 +34,18 @@ class SnapshotCollector:
         containers: ContainerInspector,
     ) -> None:
         self.proc = proc
+        self.runner = runner
         self.actions = actions
         self.resources = ResourceCollector(proc, runner, packages, systemd, containers)
         self.activity = ActivitySampler()
         self.process_metadata = ProcessMetadataCache()
         self.gpu = GpuSampler()
         self.slowdown = SlowdownSampler()
+        self.network = NetworkMonitor(proc, runner)
 
     def reset_target(self) -> None:
+        self.network.close()
+        self.network = NetworkMonitor(self.proc, self.runner)
         self.activity = ActivitySampler()
         self.process_metadata = ProcessMetadataCache()
         self.gpu = GpuSampler()
@@ -51,6 +56,7 @@ class SnapshotCollector:
         self.activity = ActivitySampler()
         self.gpu = GpuSampler()
         self.slowdown = SlowdownSampler()
+        self.network.history.reset_rates()
 
     @property
     def resource_revision(self) -> int:
@@ -190,6 +196,13 @@ class SnapshotCollector:
             coverage["status"] = "Some data unavailable"
             coverage["domains"]["processes"] = "limited"
 
+        network = self.network.sample(
+            connections,
+            [row for row in tree.rows if int(row["pid"]) not in changed_identities],
+            resources.connections.limited,
+            int(settings.get("historySeconds", 300)),
+        )
+
         snapshot = self._snapshot_envelope(
             resolved, settings, sampling_paused, generated_at
         )
@@ -200,6 +213,7 @@ class SnapshotCollector:
                 "performance": performance,
                 "processes": tree.rows,
                 "connections": connections,
+                "network": network,
                 "files": files,
                 "locks": locks,
                 "devices": {

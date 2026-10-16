@@ -33,6 +33,7 @@ Item {
     property bool catalogRequested: false
     property double catalogLoadedAt: 0
     property int inspectionGeneration: 0
+    property bool networkBusy: false
     readonly property int refreshIntervalMs: sampling.refreshIntervalMs
     readonly property int performanceWindowSeconds: sampling.performanceWindowSeconds
     readonly property bool interactionBlocked: busy || capturingPreview
@@ -45,6 +46,7 @@ Item {
     signal capsuleStatusChanged(string message)
 
     function beginInspection() {
+        networkBusy = false;
         inspectionGeneration += 1;
         sampling.beginInspection();
         refreshInFlight = false;
@@ -194,7 +196,7 @@ Item {
 
     function refresh() { sampling.refresh(); }
 
-    function focusProcess(pid) {
+    function focusProcess(pid, expectedIdentity) {
         if (offline) {
             showNotice("Offline reports are read-only");
             return;
@@ -202,7 +204,9 @@ Item {
         var generation = beginInspection();
         root.querySynchronized("pid:" + pid);
         busy = true;
-        bridge.send("focusProcess", {"pid": pid}, function(data, error) {
+        var request = {"pid": pid};
+        if (expectedIdentity) request.expectedIdentity = expectedIdentity;
+        bridge.send("focusProcess", request, function(data, error) {
             if (isCurrentInspection(generation) && error)
                 showNotice(error);
             finishSnapshot(data, true, generation, false);
@@ -225,10 +229,10 @@ Item {
         Qt.callLater(closeDrawer);
     }
 
-    function selectProcessAfterPointer(pid) {
+    function selectProcessAfterPointer(pid, expectedIdentity) {
         Qt.callLater(function() {
             drawer = "";
-            focusProcess(pid);
+            focusProcess(pid, expectedIdentity);
         });
     }
 
@@ -295,6 +299,22 @@ Item {
             showNotice("Settings applied");
             drawer = "";
             if (!offline) refresh();
+        });
+    }
+
+    function configureNetwork(options) {
+        if (offline || networkBusy || busy || snapshot.samplingPaused) return;
+        var generation = inspectionGeneration;
+        var request = Object.assign({}, options, {"inspectionId": (snapshot.target || {}).inspectionId});
+        networkBusy = true;
+        bridge.send("configureNetwork", request, function(data, error) {
+            if (!isCurrentInspection(generation)) return;
+            networkBusy = false;
+            if (error) { showNotice(error); return; }
+            if (data) {
+                applySnapshot(data, false);
+                detailSnapshot = data;
+            }
         });
     }
 
