@@ -107,6 +107,23 @@ def _validate_domains(snapshot: dict[str, object]) -> None:
 
 
 def _validate_nested_domains(snapshot: dict[str, object]) -> None:
+    if "performance" in snapshot:
+        performance = snapshot["performance"]
+        if not isinstance(performance, dict) or not _dict_list(
+            performance.get("checks")
+        ):
+            raise CapsuleError("Capsule snapshot has invalid performance.checks")
+        if not isinstance(performance.get("limited", []), list):
+            raise CapsuleError("Capsule snapshot has invalid performance.limited")
+        for check in performance["checks"]:
+            if not isinstance(check.get("evidence", []), list):
+                raise CapsuleError(
+                    "Capsule snapshot has invalid performance.checks.evidence"
+                )
+            if not isinstance(check.get("measurements", {}), dict):
+                raise CapsuleError(
+                    "Capsule snapshot has invalid performance.checks.measurements"
+                )
     target = snapshot["target"]
     if "alternatives" in target and not _dict_list(target["alternatives"]):
         raise CapsuleError("Capsule snapshot has invalid target.alternatives")

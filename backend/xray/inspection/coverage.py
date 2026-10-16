@@ -15,6 +15,7 @@ def build_coverage(
     uptime_limited: str,
     gpu_clients: list[dict[str, object]],
     gpu_limited: list[str],
+    performance: dict[str, object],
 ) -> tuple[dict[str, object], dict[str, str]]:
     connection_limited = list(resources.connections.limited)
     file_limited = list(resources.files.limited)
@@ -34,6 +35,7 @@ def build_coverage(
                 *runtime_limited,
                 *security_limited,
                 *resolved.limited,
+                *performance.get("limited", []),
                 *(
                     [resources.devices.pipewire_error]
                     if resources.devices.pipewire_error
@@ -90,6 +92,15 @@ def build_coverage(
         "Runtime and security",
         "Application context",
     ]
+    if performance.get("status") == "limited":
+        limited.append(
+            "Some performance checks are unavailable; open Check performance for source details"
+        )
+    if any(
+        check.get("status") in {"Observed", "Quiet"}
+        for check in performance.get("checks", [])
+    ):
+        available.append("Performance pressure and delay checks")
     if not resources.devices.pipewire_error or resources.devices.pipewire:
         available.append("PipeWire devices")
     if not resources.devices.inhibitor_error:
@@ -128,6 +139,9 @@ def build_coverage(
                     or resources.runtime.logs_limited
                     else "available"
                 ),
+                "performance": "limited"
+                if performance.get("status") == "limited"
+                else "available",
             },
         },
         availability,

@@ -58,4 +58,16 @@ class CapsuleService:
             for row in explanations
             if isinstance(row, dict)
         )
+        performance = sanitized.get("performance", {})
+        checks = performance.get("checks", []) if isinstance(performance, dict) else []
+        if checks:
+            lines.extend(["", "Why slow?", str(performance.get("summary", ""))])
+            for check in checks:
+                lines.append(
+                    f"- [{check.get('status', 'Unavailable')}] {check.get('title', 'Check')}"
+                )
+                lines.append(f"  {check.get('why', '')}")
+                lines.extend(f"  {value}" for value in check.get("evidence", []))
+                if check.get("nextStep"):
+                    lines.append(f"  Next: {check['nextStep']}")
         return {"text": "\n".join(lines)}

@@ -15,10 +15,18 @@ DrawerSurface {
     property string pendingFilterText: ""
     property bool selectionEnabled: true
     readonly property bool processDomain: domain === DetailDomains.Processes
+    readonly property bool performanceDomain: domain === DetailDomains.Performance
+    property bool technicalDetails: false
+    property var expandedChecks: ({})
+    property string focusedPerformanceRow: ""
+    readonly property int targetPid: Number((snapshot.target || {}).rootPid || 0)
+    onTargetPidChanged: expandedChecks = ({})
+    readonly property int performanceCheckCount: ((snapshot.performance || {}).checks || []).length
     property var collapsedSections: ({})
     signal closed()
     signal processSelected(int pid)
-    readonly property var rawRows: visible ? DetailDomains.rows(domain, snapshot) : []
+    readonly property var rawRows: visible && (!performanceDomain || technicalDetails)
+        ? DetailDomains.rows(domain, snapshot) : []
     readonly property var allRows: rawRows
     readonly property var searchRows: processDomain ? rawRows
         : DetailDomains.presentationSource(domain, rawRows)
@@ -33,7 +41,29 @@ DrawerSurface {
             filterText.trim() !== ""
         )
     readonly property int visibleRowCount: processDomain ? 0 : displayRows.length
-    readonly property var summaryStats: DetailDomains.summary(domain, snapshot, searchRows)
+    readonly property var summaryStats: visible && !performanceDomain
+        ? DetailDomains.summary(domain, snapshot, searchRows) : []
+    onDisplayRowsChanged: {
+        if (!performanceDomain || !evidenceList || !evidenceList.activeFocus || !focusedPerformanceRow) return
+        // Preserve the measurement key before model resets move focus.
+        var focusedKey = focusedPerformanceRow
+        Qt.callLater(function() {
+            if (!evidenceList.activeFocus) return
+            var index = root.displayRows.findIndex(function(row) {
+                return root.performanceRowKey(row) === focusedKey
+            })
+            if (index < 0) return
+            evidenceList.currentIndex = index
+            evidenceList.positionViewAtIndex(index, ListView.Contain)
+            evidenceList.forceLayout()
+            var delegate = evidenceList.itemAtIndex(index)
+            if (delegate && delegate.item) delegate.item.focusHeader()
+        })
+    }
+
+    function performanceRowKey(row) {
+        return row.rowType === "section" ? "section:" + row.sectionId : row.findingId
+    }
 
     function queueFilterText(value) {
         pendingFilterText = String(value || "")
@@ -49,12 +79,18 @@ DrawerSurface {
     onVisibleChanged: if (!visible) {
         filterDelay.stop()
         pendingFilterText = ""
+        technicalDetails = false
+        expandedChecks = ({})
+        focusedPerformanceRow = ""
     }
 
     onDomainChanged: {
         filterDelay.stop()
         pendingFilterText = ""
         filterText = ""
+        technicalDetails = false
+        expandedChecks = ({})
+        focusedPerformanceRow = ""
     }
 
     function toggleSection(id) {
@@ -62,6 +98,17 @@ DrawerSurface {
         var key = DetailDomains.sectionKey(root.domain, id)
         next[key] = next[key] !== true
         root.collapsedSections = next
+    }
+
+    function toggleCheck(id) {
+        var next = Object.assign({}, expandedChecks)
+        next[id] = !next[id]
+        expandedChecks = next
+    }
+
+    function selectPerformanceTab(details) {
+        technicalDetails = details
+        applyFilterText("")
     }
 
     function rowAccent(row) {
@@ -74,6 +121,45 @@ DrawerSurface {
     }
 
     accentColor: theme.toneColor(DetailDomains.tone(domain))
+
+    Component {
+        id: performanceSectionComponent
+        DrawerSectionHeader {
+            theme: root.theme
+            accentColor: parent.rowAccentValue
+            iconName: String(parent.rowData.icon || "device")
+            title: String(parent.rowData.title || "")
+            count: Number(parent.rowData.count || 0)
+            collapsed: parent.rowData.collapsed === true
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: title + ", " + count + " measurements"
+            function focusHeader() { forceActiveFocus(Qt.OtherFocusReason) }
+            Keys.onSpacePressed: toggled()
+            Keys.onReturnPressed: toggled()
+            Keys.onEnterPressed: toggled()
+            onToggled: parent.sectionToggled(parent.rowData.sectionId)
+            onActiveFocusChanged: if (activeFocus) parent.rowFocused()
+            Rectangle {
+                anchors.fill: parent
+                radius: root.theme.controlRadius
+                color: root.theme.transparent
+                border.color: root.theme.accent
+                border.width: parent.activeFocus ? root.theme.borderWidth : 0
+            }
+        }
+    }
+
+    Component {
+        id: performanceRowComponent
+        PerformanceCheckRow {
+            theme: root.theme
+            row: parent.rowData
+            expanded: root.expandedChecks[row.findingId] === true
+            onToggled: root.toggleCheck(row.findingId)
+            onFocused: parent.rowFocused()
+        }
+    }
 
     Timer {
         id: filterDelay
@@ -189,18 +275,41 @@ DrawerSurface {
             accentColor: root.accentColor
             eyebrow: ""
             title: DetailDomains.title(root.domain)
-            detail: root.headerDetail()
+            detail: root.performanceDomain ? "Measurements, clues, and limits" : root.headerDetail()
             onClosed: root.closed()
+        }
+
+        Row {
+            visible: root.performanceDomain
+            width: parent.width
+            spacing: root.theme.smallGap
+            ActionButton {
+                objectName: "xrayPerformanceOverviewTab"
+                theme: root.theme
+                text: "Overview"
+                variant: !root.technicalDetails ? "primary" : "neutral"
+                accentColor: root.accentColor
+                onClicked: root.selectPerformanceTab(false)
+            }
+            ActionButton {
+                objectName: "xrayPerformanceDetailsToggle"
+                theme: root.theme
+                text: "Measurements  ·  " + root.performanceCheckCount
+                variant: root.technicalDetails ? "primary" : "neutral"
+                accentColor: root.accentColor
+                onClicked: root.selectPerformanceTab(true)
+            }
         }
 
         ThemedTextField {
             id: filterField
+            visible: !root.performanceDomain || root.technicalDetails
             theme: root.theme
             accentColor: root.accentColor
             width: parent.width
             placeholderText: root.processDomain
                 ? "Filter process, command, user, or PID…"
-                : "Filter this list…"
+                : root.performanceDomain ? "Search measurements…" : "Filter this list…"
             text: root.filterText
             onTextEdited: root.queueFilterText(text)
             onAccepted: root.applyFilterText(text)
@@ -216,12 +325,21 @@ DrawerSurface {
 
         EvidenceSummaryStrip {
             id: evidenceStats
-            visible: root.summaryStats.length > 0
+            visible: root.summaryStats.length > 0 && !root.performanceDomain
             width: parent.width
             height: visible ? implicitHeight : 0
             theme: root.theme
             stats: root.summaryStats
             accentColor: root.accentColor
+        }
+
+        ReadingText {
+            visible: root.performanceDomain && root.technicalDetails
+            width: parent.width
+            theme: root.theme
+            text: root.headerDetail() + " · Select a measurement for evidence."
+            color: root.theme.muted
+            font.pixelSize: root.theme.microFontSize
         }
 
         Views.ProcessEvidenceTable {
@@ -236,12 +354,20 @@ DrawerSurface {
             onProcessSelected: function(pid) { root.processSelected(pid); }
         }
 
-        ListView {
-            id: evidenceList
-            visible: !root.processDomain
+        Views.PerformanceOverview {
+            visible: root.performanceDomain && !root.technicalDetails
             width: parent.width
             height: parent.height - y
-            model: root.processDomain ? [] : root.displayRows
+            theme: root.theme
+            performance: visible ? root.snapshot.performance || ({}) : ({})
+        }
+
+        ListView {
+            id: evidenceList
+            visible: !root.processDomain && (!root.performanceDomain || root.technicalDetails)
+            width: parent.width
+            height: parent.height - y
+            model: visible ? root.displayRows : []
             reuseItems: true
             clip: true
             spacing: 0
@@ -259,18 +385,22 @@ DrawerSurface {
                 readonly property color rowAccentValue: root.rowAccent(modelData)
                 readonly property bool rowSelectable: root.selectionEnabled
                     && DetailDomains.selectable(root.domain) && !!modelData.pid
-                readonly property bool firstInSection: sourceIndex === 0
+                // Pooled delegates can outlive their row during a model reset.
+                readonly property bool firstInSection: sourceIndex <= 0
+                    || sourceIndex >= root.displayRows.length
                     || root.displayRows[sourceIndex - 1].rowType === "section"
-                readonly property bool lastInSection:
-                    sourceIndex === root.displayRows.length - 1
+                readonly property bool lastInSection: sourceIndex < 0
+                    || sourceIndex >= root.displayRows.length - 1
                     || root.displayRows[sourceIndex + 1].rowType === "section"
                 signal sectionToggled(string sectionId)
                 signal processChosen(int pid)
+                signal rowFocused()
 
                 width: ListView.view.width - root.theme.drawerListInset
                 height: item ? item.implicitHeight : root.theme.compactRowHeight
                 sourceComponent: {
-                    if (modelData.rowType === "section") return sectionRowComponent
+                    if (modelData.rowType === "section") return root.performanceDomain ? performanceSectionComponent : sectionRowComponent
+                    if (root.performanceDomain) return performanceRowComponent
                     if (modelData.rowType === "connection") return connectionRowComponent
                     if (modelData.rowType === "fileGroup" || modelData.rowType === "lock")
                         return fileRowComponent
@@ -281,6 +411,13 @@ DrawerSurface {
                 }
                 onSectionToggled: function(sectionId) { root.toggleSection(sectionId) }
                 onProcessChosen: function(pid) { root.processSelected(pid) }
+                onRowFocused: {
+                    if (sourceIndex < 0 || sourceIndex >= root.displayRows.length) return
+                    root.focusedPerformanceRow = root.performanceRowKey(rowData)
+                    evidenceList.currentIndex = sourceIndex
+                    evidenceList.positionViewAtIndex(sourceIndex, ListView.Contain)
+                    if (y < evidenceList.contentY) evidenceList.contentY = y
+                }
             }
 
             PlainText {

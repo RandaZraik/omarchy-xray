@@ -12,9 +12,7 @@ from support.paths import PROJECT_ROOT
 
 QUICKSHELL = shutil.which("quickshell") or shutil.which("qs")
 OMARCHY_IMPORTS = Path("/usr/share/omarchy/shell")
-DRAWER_ENVIRONMENT_KEYS = frozenset(
-    {"XRAY_DRAWER_DOMAIN", "XRAY_DRAWER_SECTION"}
-)
+DRAWER_ENVIRONMENT_KEYS = frozenset({"XRAY_DRAWER_DOMAIN", "XRAY_DRAWER_SECTION"})
 
 
 @dataclass(frozen=True)
@@ -92,4 +90,26 @@ class QuickshellHarness:
         return QuickshellResult(
             returncode=completed.returncode,
             output=completed.stdout + "\n" + completed.stderr,
+        )
+
+    def run_offscreen(
+        self,
+        shell: Path,
+        *,
+        timeout: float,
+        environment: Mapping[str, str] | None = None,
+        state_home: Path | None = None,
+    ) -> QuickshellResult:
+        return self.run(
+            shell,
+            timeout=timeout,
+            environment={
+                **(environment or {}),
+                "QT_QPA_PLATFORM": "offscreen",
+                "QT_QUICK_BACKEND": "software",
+                "QT_QPA_PLATFORMTHEME": "",
+                "QT_STYLE_OVERRIDE": "Fusion",
+            },
+            unset_environment=("WAYLAND_DISPLAY", "DISPLAY"),
+            state_home=state_home,
         )

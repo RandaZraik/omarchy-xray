@@ -43,6 +43,36 @@ class EvidenceBudgetTests(unittest.TestCase):
         self.assertEqual(constrained["coverage"]["domains"]["processes"], "limited")
         self.assertEqual(constrained["coverage"]["domains"]["files"], "limited")
 
+    def test_truncated_performance_discloses_omitted_checks_and_retained_signals(
+        self,
+    ) -> None:
+        checks = [
+            {"status": "Observed", "tone": "attention", "evidence": ["x" * 300_000]}
+            for _ in range(50)
+        ]
+        snapshot = {
+            "performance": {
+                "checks": checks,
+                "observed": 50,
+                "status": "available",
+                "limited": [],
+            },
+            "coverage": {"limited": [], "domains": {"performance": "available"}},
+        }
+        constrained = constrain_snapshot(snapshot)
+        performance = constrained["performance"]
+        self.assertLess(len(performance["checks"]), 50)
+        self.assertEqual(performance["originalCheckCount"], 50)
+        self.assertEqual(performance["observed"], len(performance["checks"]))
+        self.assertEqual(performance["status"], "limited")
+        self.assertTrue(performance["limited"])
+        self.assertIn("Evidence omitted", performance["summary"])
+        self.assertEqual(constrained["coverage"]["domains"]["performance"], "limited")
+        self.assertLessEqual(
+            len(json.dumps(constrained, separators=(",", ":")).encode()),
+            LIMITS.snapshot_bytes,
+        )
+
     def test_catalog_budget_bounds_every_string_and_aggregate_payload(self) -> None:
         oversized = "resource-" + "x" * (LIMITS.catalog_string_bytes + 100)
         catalog = {

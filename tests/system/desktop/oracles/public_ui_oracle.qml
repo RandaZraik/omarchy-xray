@@ -261,6 +261,13 @@ ShellRoot {
                 root.require(identityRail && identityRail.visible
                         && identityRail.width > 0 && identityRail.height > 0,
                     "the production identity rail is missing")
+                var performanceButton = root.named("xrayPerformanceButton")
+                root.require(performanceButton && performanceButton.enabled
+                        && performanceButton.text === "Check performance",
+                    "the selected-target performance action is missing")
+                root.require(root.descendants(identityRail).indexOf(performanceButton) >= 0
+                        && root.descendants(root.header).indexOf(performanceButton) < 0,
+                    "performance action is not scoped to the selected target")
                 var telemetryTrace = root.named("xrayTelemetryTrace")
                 root.require(telemetryTrace && telemetryTrace.visible
                         && telemetryTrace.width >= telemetryTrace.theme.telemetryTraceMinimumWidth
@@ -332,6 +339,15 @@ ShellRoot {
                 root.record("searchAccepted", true)
                 var escape = root.findProperty(entry, "sequence", "Escape")
                 root.require(escape, "production Escape shortcut is missing")
+                root.named("xrayPerformanceButton").clicked()
+                root.stage = 21
+                return
+            }
+
+            if (root.stage === 21) {
+                root.require(root.detailDrawer.visible && root.detailDrawer.domain === "performance",
+                    "the selected-target performance action did not open its drawer")
+                root.controller.closeDrawer()
                 root.stage = 3
                 return
             }

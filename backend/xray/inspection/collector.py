@@ -6,12 +6,14 @@ from xray.actions.process_control import ProcessActions
 from xray.config import COVERAGE_DOMAINS, LIMITS
 from xray.devices.gpu import GpuSampler, collect_gpu_clients
 from xray.evidence.explanations import derive_explanations
+from xray.evidence.slowdown import diagnose
 from xray.files.packages import PackageIndex
 from xray.inspection.coverage import build_coverage
 from xray.inspection.resources import ResourceCollector
 from xray.processes.activity import ActivitySampler
 from xray.processes.collector import ProcessMetadataCache, collect_tree
 from xray.processes.identity import ProcessIdentity, identity_for
+from xray.processes.slowdown import SlowdownSampler
 from xray.runtime.containers import ContainerInspector
 from xray.runtime.systemd import SystemdInspector
 from xray.system.commands import CommandRunner
@@ -36,16 +38,19 @@ class SnapshotCollector:
         self.activity = ActivitySampler()
         self.process_metadata = ProcessMetadataCache()
         self.gpu = GpuSampler()
+        self.slowdown = SlowdownSampler()
 
     def reset_target(self) -> None:
         self.activity = ActivitySampler()
         self.process_metadata = ProcessMetadataCache()
         self.gpu = GpuSampler()
+        self.slowdown = SlowdownSampler()
         self.resources.reset()
 
     def reset_sampling_baselines(self) -> None:
         self.activity = ActivitySampler()
         self.gpu = GpuSampler()
+        self.slowdown = SlowdownSampler()
 
     @property
     def resource_revision(self) -> int:
@@ -106,6 +111,12 @@ class SnapshotCollector:
         )
         metrics["gpuPercent"] = self.gpu.sample(gpu_clients)
         metrics["gpuAvailable"] = metrics["gpuPercent"] is not None
+        performance_evidence = self.slowdown.sample(self.proc, tree.rows)
+        if tree.topology_limited:
+            performance_evidence["limited"].append(
+                "The selected process tree is incomplete"
+            )
+        performance = diagnose(performance_evidence)
         uptime_seconds, uptime_limited = self.proc.process_uptime_seconds(
             tree.root_identity.start_time
         )
@@ -163,6 +174,7 @@ class SnapshotCollector:
             uptime_limited=uptime_limited,
             gpu_clients=gpu_clients,
             gpu_limited=gpu_limited,
+            performance=performance,
         )
         descendant_churn = [
             pid for pid in changed_identities if pid != tree.root_identity.pid
@@ -185,6 +197,7 @@ class SnapshotCollector:
             {
                 "context": context,
                 "metrics": metrics,
+                "performance": performance,
                 "processes": tree.rows,
                 "connections": connections,
                 "files": files,
@@ -267,6 +280,13 @@ class SnapshotCollector:
             },
             "context": {},
             "metrics": {},
+            "performance": {
+                "status": "unavailable",
+                "checks": [],
+                "observed": 0,
+                "summary": "No process to inspect",
+                "limited": [],
+            },
             "processes": [],
             "connections": [],
             "files": [],

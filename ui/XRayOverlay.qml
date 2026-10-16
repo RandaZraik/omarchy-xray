@@ -258,11 +258,13 @@ Item {
 
                             IdentityBar {
                                 Layout.fillWidth: true
+                                enabled: !controller.interactionBlocked
                                 theme: theme
                                 appLibrary: root.appLibrary
                                 snapshot: controller.snapshot
                                 performanceSamples: controller.performanceSamples
                                 performanceWindowSeconds: controller.performanceWindowSeconds
+                                onPerformanceRequested: controller.showDetails(DetailDomains.Performance)
                                 onAlternativesRequested: controller.showDetails(DetailDomains.Alternatives)
                                 onCoverageRequested: if (controller.snapshot.coverage) controller.showDetails(DetailDomains.Coverage)
                             }
@@ -312,6 +314,8 @@ Item {
                     z: 41
                     width: controller.detailDomain === DetailDomains.Processes
                         ? Math.min(720, parent.width * 0.52)
+                        : controller.detailDomain === DetailDomains.Performance
+                            ? Math.min(620, parent.width - theme.drawerMargin * 2)
                         : Math.min(580, parent.width * 0.42)
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom

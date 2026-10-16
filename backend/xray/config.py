@@ -44,6 +44,9 @@ class Limits:
     active_launchers: int = 16
     runtime_detail_cache_entries: int = 256
     package_owner_cache_entries: int = 256
+    slowdown_threads: int = 256
+    slowdown_cgroups: int = 32
+    slowdown_cgroup_depth: int = 32
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,7 @@ COVERAGE_DOMAINS: Final[tuple[str, ...]] = (
     "inhibitors",
     "devices",
     "runtime",
+    "performance",
 )
 
 SETTINGS_SPEC: Final[tuple[dict[str, object], ...]] = (

@@ -13,8 +13,19 @@ var Cause = "cause"
 var Explanations = "explanations"
 var Coverage = "coverage"
 var Alternatives = "alternatives"
+var Performance = "performance"
 
 var descriptors = {
+    "performance": {
+        "title": "Why is this app slow?", "tone": "process", "rowType": "finding",
+        "patchKeys": ["performance"], "fallbackSection": "coverage",
+        "sections": [
+            {"id": "cpu", "label": "CPU WORK, WAIT & LIMITS", "icon": "process", "tone": "process"},
+            {"id": "memory", "label": "MEMORY PRESSURE & LIMITS", "icon": "memory", "tone": "runtime"},
+            {"id": "io", "label": "I/O PRESSURE & BLOCKED THREADS", "icon": "file", "tone": "storage"},
+            {"id": "coverage", "label": "MEASUREMENT COVERAGE", "icon": "coverage", "tone": "storage"}
+        ]
+    },
     "processes": {
         "title": "Process tree", "selectable": true, "tone": "process",
         "patchKeys": ["processes"]
@@ -75,6 +86,7 @@ var descriptors = {
         "title": "Findings", "tone": "danger", "rowType": "finding",
         "patchKeys": ["explanations", "timeline"], "fallbackSection": "other",
         "sections": [
+            {"id": "performance", "label": "PERFORMANCE SIGNALS", "icon": "process", "tone": "process"},
             {"id": "network", "label": "NETWORK EXPOSURE", "icon": "network", "tone": "network"},
             {"id": "files", "label": "FILES & LOCKS", "icon": "lock", "tone": "storage"},
             {"id": "devices", "label": "PRIVACY & DEVICES", "icon": "device", "tone": "device"},
@@ -125,7 +137,7 @@ function sectionTone(domain, section) {
 }
 
 function rowTone(domain, row) {
-    if (domain === Explanations && row && row.tone === "attention") return "danger"
+    if ((domain === Explanations || domain === Performance) && row && row.tone === "attention") return "danger"
     return sectionTone(domain, String((row || {}).sectionId || (row || {}).section || ""))
 }
 
@@ -140,6 +152,7 @@ function count(domain, snapshot) {
     if (domain === Explanations) return NarrativeRows.explanationCount(snapshot)
     if (domain === Coverage) return NarrativeRows.coverageCount(snapshot)
     if (domain === Alternatives) return NarrativeRows.alternativeCount(snapshot)
+    if (domain === Performance) return NarrativeRows.performance(snapshot).length
     return 0
 }
 
@@ -163,6 +176,7 @@ function rows(domain, snapshot) {
     if (domain === Explanations) return NarrativeRows.explanations(snapshot)
     if (domain === Coverage) return NarrativeRows.coverage(snapshot)
     if (domain === Alternatives) return NarrativeRows.alternatives(snapshot)
+    if (domain === Performance) return NarrativeRows.performance(snapshot)
     return []
 }
 
@@ -353,6 +367,8 @@ function detail(domain, snapshot, allRows, filteredRows, filtering, processSumma
     snapshot = snapshot || {}
     allRows = allRows || []
     filteredRows = filteredRows || []
+    if (domain === Performance)
+        return (snapshot.performance || {}).summary || "Performance evidence was not recorded"
     if (domain === Processes) {
         var process = processSummary || {"processes": 0, "threads": 0, "memoryBytes": 0}
         return process.processes + " processes  ·  " + process.threads + " threads  ·  "

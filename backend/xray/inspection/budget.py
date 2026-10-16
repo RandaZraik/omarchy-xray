@@ -5,6 +5,7 @@ from xray.config import LIMITS
 
 
 _DOMAIN_BUDGETS = (
+    (("performance", "checks"), 512 * 1024, "performance", "Performance checks"),
     (("processes",), 3 * 1024 * 1024, "processes", "Process rows"),
     (("files",), 4 * 1024 * 1024, "files", "Open file rows"),
     (("connections",), 1024 * 1024, "connections", "Connection rows"),
@@ -75,10 +76,27 @@ def _set_rows(
             child = {}
             current[key] = child
         current = child
+    if path == ("performance", "checks"):
+        current.setdefault("originalCheckCount", len(current.get("checks", [])))
     current[path[-1]] = rows
 
 
 def _mark_limited(snapshot: dict[str, object], domain: str, message: str) -> None:
+    if domain == "performance" and isinstance(snapshot.get("performance"), dict):
+        performance = snapshot["performance"]
+        performance["status"] = "limited"
+        performance["limited"] = list(
+            dict.fromkeys([*performance.get("limited", []), message])
+        )
+        checks = performance.get("checks", [])
+        observed = sum(
+            check.get("status") == "Observed" and check.get("tone") == "attention"
+            for check in checks
+        )
+        performance["observed"] = observed
+        performance["summary"] = (
+            f"Evidence omitted: showing {len(checks)} checks with {observed} performance signals"
+        )
     coverage = snapshot.get("coverage")
     if not isinstance(coverage, dict):
         return
