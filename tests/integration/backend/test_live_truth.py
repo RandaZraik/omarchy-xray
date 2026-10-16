@@ -21,6 +21,7 @@ from support.machine_truth import (
     descriptor_info,
     expected_detail_counts,
     proc_security,
+    proc_stat,
     proc_status,
     rendered_details,
     system_cpu_ticks,
@@ -259,25 +260,29 @@ class LiveTruthTests(unittest.TestCase):
                 )
             )
 
+        first_cpu_before = int(proc_stat(pid)["cpuTicks"])
+        first_total_cpu_before = system_cpu_ticks()
         first_io_start = time.monotonic()
         first_io_before = write_counter()
         initial = self.inspect_fixture()
+        stat_before = proc_stat(pid)
+        total_cpu_before = system_cpu_ticks()
         descriptor_before = {
             (int(row["pid"]), int(row["fd"]), str(row["target"])): descriptor_info(
                 int(row["pid"]), int(row["fd"])
             )
             for row in initial["files"]
         }
-        stat_before = Path(f"/proc/{pid}/stat").read_text()
         io_before = Path(f"/proc/{pid}/io").read_text()
-        total_cpu_before = system_cpu_ticks()
         sampled_before = time.monotonic()
         time.sleep(0.35)
+        second_cpu_before = int(proc_stat(pid)["cpuTicks"])
+        second_total_cpu_before = system_cpu_ticks()
         second_io_before = write_counter()
         second_io_start = time.monotonic()
         snapshot = self.require_ok(self.backend.request("refresh"))
         total_cpu_after = system_cpu_ticks()
-        stat_after = Path(f"/proc/{pid}/stat").read_text()
+        stat_after = proc_stat(pid)
         io_after = Path(f"/proc/{pid}/io").read_text()
         last_io_end = time.monotonic()
         status = proc_status(pid)
@@ -287,8 +292,8 @@ class LiveTruthTests(unittest.TestCase):
         self.assertEqual(root["gid"], int(status["Gid"].split()[0]))
         self.assertEqual(root["threads"], int(status["Threads"]))
         page_size = os.sysconf("SC_PAGE_SIZE")
-        rss_before = int(stat_before.rsplit(")", 1)[1].split()[21]) * page_size
-        rss_after = int(stat_after.rsplit(")", 1)[1].split()[21]) * page_size
+        rss_before = int(stat_before["rssBytes"])
+        rss_after = int(stat_after["rssBytes"])
         self.assertEqual(root["memoryBytes"] % page_size, 0)
         self.assertGreaterEqual(root["memoryBytes"], min(rss_before, rss_after))
         self.assertLessEqual(root["memoryBytes"], max(rss_before, rss_after))
@@ -305,22 +310,23 @@ class LiveTruthTests(unittest.TestCase):
         self.assertGreaterEqual(metrics["cpuPercent"], 0)
         self.assertGreaterEqual(metrics["readBytesPerSecond"], 0)
         self.assertGreater(metrics["writeBytesPerSecond"], 0)
-        cpu_before = sum(map(int, stat_before.rsplit(")", 1)[1].split()[11:13]))
-        cpu_after = sum(map(int, stat_after.rsplit(")", 1)[1].split()[11:13]))
+        cpu_before = int(stat_before["cpuTicks"])
+        cpu_after = int(stat_after["cpuTicks"])
         self.assertGreater(cpu_after, cpu_before)
         self.assertGreater(root["cpuPercent"], 0)
         self.assertGreater(metrics["cpuPercent"], 0)
         self.assertGreater(root["writeBytesPerSecond"], 0)
-        total_cpu_delta = max(1, total_cpu_after - total_cpu_before)
-        expected_cpu = (cpu_after - cpu_before) / total_cpu_delta * 100
-        # The independent reads bracket, rather than occur at the exact same
-        # instant as, the backend sample. Allow two discrete scheduler ticks
-        # plus the backend's one-decimal rounding; on small CI runners that
-        # quantization can exceed one percentage point. The one-point floor
-        # covers the remaining scheduling edge while still catching per-core
-        # vs total machine-capacity mistakes.
-        cpu_tolerance = max(1.0, 200 / total_cpu_delta + 0.05)
-        self.assertLessEqual(abs(root["cpuPercent"] - expected_cpu), cpu_tolerance)
+        # Bound both backend samples with independent counter reads. The
+        # initial resource scan and refresh can take different amounts of
+        # time, so a separate interval plus a fixed tolerance is unreliable.
+        minimum_total_delta = second_total_cpu_before - total_cpu_before
+        maximum_total_delta = total_cpu_after - first_total_cpu_before
+        self.assertGreater(minimum_total_delta, 0)
+        self.assertGreaterEqual(maximum_total_delta, minimum_total_delta)
+        minimum_cpu = max(0, second_cpu_before - cpu_before) / maximum_total_delta * 100
+        maximum_cpu = (cpu_after - first_cpu_before) / minimum_total_delta * 100
+        self.assertGreaterEqual(root["cpuPercent"], round(minimum_cpu, 1))
+        self.assertLessEqual(root["cpuPercent"], round(maximum_cpu, 1))
         io_values_before = {
             line.partition(":")[0]: int(line.partition(":")[2])
             for line in io_before.splitlines()
