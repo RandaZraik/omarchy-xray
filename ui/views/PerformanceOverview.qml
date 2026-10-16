@@ -10,7 +10,7 @@ Flickable {
     property bool limitsExpanded: false
     readonly property var assessment: PerformanceAssessment.assessment(performance)
     objectName: "xrayPerformanceOverview"
-    contentHeight: content.implicitHeight + 16
+    contentHeight: content.implicitHeight + theme.gap
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     onVisibleChanged: if (!visible) limitsExpanded = false
@@ -18,26 +18,26 @@ Flickable {
 
     Column {
         id: content
-        width: root.width - 10
-        spacing: 20
+        width: root.width - root.theme.drawerListInset
+        spacing: root.theme.gap * 2
 
         Column {
             width: parent.width
-            spacing: 10
-            topPadding: 8
+            spacing: root.theme.gap
+            topPadding: root.theme.smallGap
             ReadingText {
                 width: parent.width
                 theme: root.theme
                 text: root.assessment.context
                 color: root.theme.muted
-                font.pixelSize: root.theme.readingMetaFontSize
+                font.pixelSize: root.theme.microFontSize
             }
             ReadingText {
                 objectName: "xrayAssessmentHeadline"
                 width: parent.width
                 theme: root.theme
                 text: root.assessment.headline
-                font.pixelSize: root.theme.readingHeroFontSize
+                font.pixelSize: root.theme.sectionFontSize
                 font.weight: Font.DemiBold
             }
             ReadingText {
@@ -45,14 +45,13 @@ Flickable {
                 theme: root.theme
                 text: root.assessment.description
                 color: root.theme.muted
-                font.pixelSize: root.theme.readingLabelFontSize
+                font.pixelSize: root.theme.bodyFontSize
                 lineHeight: 1.25
             }
-            ReadingButton {
+            ActionButton {
                 objectName: "xrayMeasurementLimits"
                 theme: root.theme
-                subtle: true
-                leftPadding: 0
+                accentColor: root.theme.processAccent
                 text: (root.limitsExpanded ? "−  " : "+  ") + root.assessment.coverageLabel
                 Accessible.name: "Measurement limits"
                 Accessible.description: root.assessment.coverageLabel
@@ -70,31 +69,40 @@ Flickable {
 
         Column {
             width: parent.width
+            spacing: root.theme.gap
             Repeater {
                 model: root.assessment.resources
-                delegate: Item {
+                delegate: Rectangle {
                     id: resource
                     required property var modelData
+                    required property int index
+                    readonly property color accentColor: [root.theme.cpuAccent, root.theme.memoryAccent, root.theme.storageAccent][index]
                     width: content.width
-                    implicitHeight: resourceContent.implicitHeight + 28
+                    implicitHeight: resourceContent.implicitHeight + root.theme.pad * 2
+                    radius: root.theme.cardRadius
+                    color: root.theme.surfaceLow
+                    border.width: root.theme.borderWidth
+                    border.color: root.theme.cardBorder
                     Rectangle {
-                        width: parent.width
-                        height: root.theme.dividerWidth
-                        color: root.theme.cardBorder
+                        width: root.theme.telemetryRailWidth
+                        height: parent.height
+                        color: resource.accentColor
                     }
                     Column {
                         id: resourceContent
-                        y: 14
-                        width: parent.width
-                        spacing: 7
+                        x: root.theme.pad
+                        y: root.theme.pad
+                        width: parent.width - root.theme.pad * 2
+                        spacing: root.theme.gap
                         Row {
                             width: parent.width
                             ReadingText {
-                                width: parent.width - badge.width - 12
+                                width: parent.width - badge.width - root.theme.gap
                                 theme: root.theme
                                 text: resource.modelData.label
-                                color: root.theme.muted
-                                font.pixelSize: root.theme.readingMetaFontSize
+                                color: resource.accentColor
+                                font.pixelSize: root.theme.labelFontSize
+                                font.bold: true
                             }
                             ReadingText {
                                 id: badge
@@ -104,14 +112,14 @@ Flickable {
                                     : resource.modelData.badge === "SYSTEM" ? "System-wide"
                                     : resource.modelData.badge === "OBSERVED" ? "Worth checking" : ""
                                 color: resource.modelData.attention ? root.theme.storageAccent : root.theme.muted
-                                font.pixelSize: root.theme.readingCaptionFontSize
+                                font.pixelSize: root.theme.microFontSize
                             }
                         }
                         ReadingText {
                             width: parent.width
                             theme: root.theme
                             text: resource.modelData.title
-                            font.pixelSize: root.theme.readingTitleFontSize
+                            font.pixelSize: root.theme.summaryFontSize
                             font.weight: Font.Medium
                         }
                         ReadingText {
@@ -127,19 +135,21 @@ Flickable {
 
         Rectangle {
             width: parent.width
-            implicitHeight: nextStep.implicitHeight + 32
-            radius: root.theme.panelRadius
-            color: root.theme.surfaceMid
+            implicitHeight: nextStep.implicitHeight + root.theme.pad * 2
+            radius: root.theme.cardRadius
+            color: root.theme.surfaceLow
+            border.width: root.theme.borderWidth
+            border.color: root.theme.cardBorder
             Column {
                 id: nextStep
-                x: 16
-                y: 16
-                width: parent.width - 32
-                spacing: 7
+                x: root.theme.pad
+                y: root.theme.pad
+                width: parent.width - root.theme.pad * 2
+                spacing: root.theme.gap
                 ReadingText {
                     theme: root.theme
                     text: "Try the slow action again"
-                    font.pixelSize: root.theme.readingLabelFontSize
+                    font.pixelSize: root.theme.labelFontSize
                     font.weight: Font.DemiBold
                 }
                 ReadingText {
@@ -157,7 +167,7 @@ Flickable {
             theme: root.theme
             text: "A quiet sample doesn’t rule out a slowdown."
             color: root.theme.muted
-            font.pixelSize: root.theme.readingCaptionFontSize
+            font.pixelSize: root.theme.microFontSize
         }
     }
 }

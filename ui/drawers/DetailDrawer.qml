@@ -45,10 +45,12 @@ DrawerSurface {
         ? DetailDomains.summary(domain, snapshot, searchRows) : []
     onDisplayRowsChanged: {
         if (!performanceDomain || !evidenceList || !evidenceList.activeFocus || !focusedPerformanceRow) return
+        // Preserve the measurement key before model resets move focus.
+        var focusedKey = focusedPerformanceRow
         Qt.callLater(function() {
             if (!evidenceList.activeFocus) return
             var index = root.displayRows.findIndex(function(row) {
-                return root.performanceRowKey(row) === root.focusedPerformanceRow
+                return root.performanceRowKey(row) === focusedKey
             })
             if (index < 0) return
             evidenceList.currentIndex = index
@@ -119,28 +121,32 @@ DrawerSurface {
     }
 
     accentColor: theme.toneColor(DetailDomains.tone(domain))
-    radius: performanceDomain ? 10 : theme.consoleRadius
-    border.color: performanceDomain ? theme.cardBorder : theme.consoleBorder
 
     Component {
         id: performanceSectionComponent
-        ReadingButton {
+        DrawerSectionHeader {
             theme: root.theme
+            accentColor: parent.rowAccentValue
+            iconName: String(parent.rowData.icon || "device")
+            title: String(parent.rowData.title || "")
+            count: Number(parent.rowData.count || 0)
+            collapsed: parent.rowData.collapsed === true
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: title + ", " + count + " measurements"
             function focusHeader() { forceActiveFocus(Qt.OtherFocusReason) }
-            subtle: true
-            height: 44
-            text: ({"cpu": "CPU", "memory": "Memory", "io": "Disk & I/O", "coverage": "Availability"})[parent.rowData.sectionId]
-                + "  ·  " + parent.rowData.count + (parent.rowData.collapsed ? "  +" : "  −")
-            contentItem: ReadingText {
-                theme: root.theme
-                text: parent.text
-                color: root.theme.muted
-                font.pixelSize: root.theme.readingMetaFontSize
-                font.weight: Font.DemiBold
-                verticalAlignment: Text.AlignVCenter
-            }
-            onClicked: parent.sectionToggled(parent.rowData.sectionId)
+            Keys.onSpacePressed: toggled()
+            Keys.onReturnPressed: toggled()
+            Keys.onEnterPressed: toggled()
+            onToggled: parent.sectionToggled(parent.rowData.sectionId)
             onActiveFocusChanged: if (activeFocus) parent.rowFocused()
+            Rectangle {
+                anchors.fill: parent
+                radius: root.theme.controlRadius
+                color: root.theme.transparent
+                border.color: root.theme.accent
+                border.width: parent.activeFocus ? root.theme.borderWidth : 0
+            }
         }
     }
 
@@ -260,60 +266,39 @@ DrawerSurface {
 
     Column {
         anchors.fill: parent
-        anchors.margins: root.performanceDomain ? 22 : root.theme.drawerPadding
-        spacing: root.performanceDomain ? 16 : root.theme.gap
-
-        Item {
-            visible: root.performanceDomain
-            width: parent.width
-            height: 34
-            ReadingText {
-                theme: root.theme
-                text: "Why is this app slow?"
-                font.pixelSize: root.theme.readingHeaderFontSize
-                font.weight: Font.DemiBold
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 44
-            }
-            ReadingButton {
-                theme: root.theme
-                subtle: true
-                anchors.right: parent.right
-                text: "×"
-                Accessible.name: "Close performance panel"
-                onClicked: root.closed()
-            }
-        }
-
-        Row {
-            visible: root.performanceDomain
-            width: parent.width
-            spacing: 6
-            ReadingButton {
-                objectName: "xrayPerformanceOverviewTab"
-                theme: root.theme
-                text: "Overview"
-                checked: !root.technicalDetails
-                onClicked: root.selectPerformanceTab(false)
-            }
-            ReadingButton {
-                objectName: "xrayPerformanceDetailsToggle"
-                theme: root.theme
-                text: "Measurements  ·  " + root.performanceCheckCount
-                checked: root.technicalDetails
-                onClicked: root.selectPerformanceTab(true)
-            }
-        }
+        anchors.margins: root.theme.drawerPadding
+        spacing: root.theme.gap
 
         DrawerHeader {
-            visible: !root.performanceDomain
             width: parent.width
             theme: root.theme
             accentColor: root.accentColor
             eyebrow: ""
             title: DetailDomains.title(root.domain)
-            detail: root.headerDetail()
+            detail: root.performanceDomain ? "Measurements, clues, and limits" : root.headerDetail()
             onClosed: root.closed()
+        }
+
+        Row {
+            visible: root.performanceDomain
+            width: parent.width
+            spacing: root.theme.smallGap
+            ActionButton {
+                objectName: "xrayPerformanceOverviewTab"
+                theme: root.theme
+                text: "Overview"
+                variant: !root.technicalDetails ? "primary" : "neutral"
+                accentColor: root.accentColor
+                onClicked: root.selectPerformanceTab(false)
+            }
+            ActionButton {
+                objectName: "xrayPerformanceDetailsToggle"
+                theme: root.theme
+                text: "Measurements  ·  " + root.performanceCheckCount
+                variant: root.technicalDetails ? "primary" : "neutral"
+                accentColor: root.accentColor
+                onClicked: root.selectPerformanceTab(true)
+            }
         }
 
         ThemedTextField {
@@ -322,8 +307,6 @@ DrawerSurface {
             theme: root.theme
             accentColor: root.accentColor
             width: parent.width
-            font.family: root.performanceDomain ? root.theme.readingFont : root.theme.dataFont
-            font.pixelSize: root.performanceDomain ? root.theme.readingBodyFontSize : root.theme.bodyFontSize
             placeholderText: root.processDomain
                 ? "Filter process, command, user, or PID…"
                 : root.performanceDomain ? "Search measurements…" : "Filter this list…"
@@ -356,7 +339,7 @@ DrawerSurface {
             theme: root.theme
             text: root.headerDetail() + " · Select a measurement for evidence."
             color: root.theme.muted
-            font.pixelSize: root.theme.readingMetaFontSize
+            font.pixelSize: root.theme.microFontSize
         }
 
         Views.ProcessEvidenceTable {

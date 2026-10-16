@@ -160,15 +160,6 @@ QtObject {
     readonly property string displayFont: Style.font.family
     readonly property string bodyFont: displayFont
     readonly property string dataFont: Style.font.family
-    readonly property string readingFont: "Adwaita Sans"
-    readonly property string codeFont: "Adwaita Mono"
-    readonly property int readingBodyFontSize: Math.max(14, Style.font.body)
-    readonly property int readingCaptionFontSize: readingBodyFontSize - 2
-    readonly property int readingMetaFontSize: readingBodyFontSize - 1
-    readonly property int readingLabelFontSize: readingBodyFontSize + 1
-    readonly property int readingTitleFontSize: readingBodyFontSize + 4
-    readonly property int readingHeaderFontSize: readingBodyFontSize + 6
-    readonly property int readingHeroFontSize: readingBodyFontSize + 12
     readonly property int microFontSize: Math.max(10, Style.font.caption)
     readonly property int captionFontSize: Math.max(10, Style.font.caption)
     readonly property int bodyFontSize: Math.max(11, Style.font.bodySmall)

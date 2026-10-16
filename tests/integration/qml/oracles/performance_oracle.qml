@@ -94,7 +94,7 @@ ShellRoot {
                 root.require(overview && overview.visible && !drawer.technicalDetails, "assessment is not the default view")
                 root.require(overview.assessment.headline === "Clues worth investigating", "assessment lost observed clue")
                 var headline = root.descendants(drawer).find(function(item) { return item.objectName === "xrayAssessmentHeadline" })
-                root.require(headline.font.family === theme.readingFont && headline.font.pixelSize >= 24, "reading typography missing")
+                root.require(headline.font.family === theme.bodyFont && headline.font.pixelSize === theme.sectionFontSize, "shared X-Ray typography missing")
                 var toggle = root.descendants(drawer).find(function(item) { return item.objectName === "xrayPerformanceDetailsToggle" })
                 root.require(toggle && toggle.visible, "measurements toggle missing")
                 var capture = Quickshell.env("XRAY_PERFORMANCE_SCREENSHOT")

@@ -16,13 +16,13 @@ Item {
             ? "Shared group · " + String(row.scope).split("/").pop()
             : row.scope === "Selected tree" ? "Selected processes"
             : row.scope === "Selected threads" ? "Selected threads" : "Measurement coverage"
-    implicitHeight: header.height + (expanded ? details.implicitHeight + 20 : 0) + 1
+    implicitHeight: header.height + (expanded ? details.implicitHeight + root.theme.gap * 2 : 0) + root.theme.dividerWidth
     objectName: "xrayPerformanceCheck"
 
     QQC.AbstractButton {
         id: header
         width: parent.width
-        height: headingColumn.implicitHeight + 28
+        height: headingColumn.implicitHeight + root.theme.pad * 2
         focusPolicy: Qt.StrongFocus
         hoverEnabled: true
         Accessible.name: root.heading + ", " + root.statusText
@@ -30,7 +30,7 @@ Item {
         onClicked: root.toggled()
         onActiveFocusChanged: if (activeFocus) root.focused()
         background: Rectangle {
-            radius: 6
+            radius: root.theme.controlRadius
             color: header.hovered ? root.theme.controlHoverSurface : root.theme.transparent
             border.width: header.visualFocus ? root.theme.borderWidth : 0
             border.color: root.theme.accent
@@ -38,15 +38,15 @@ Item {
         contentItem: Item {
             Column {
                 id: headingColumn
-                x: 8
+                x: root.theme.pad
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - status.width - 42
-                spacing: 5
+                width: parent.width - status.width - root.theme.pad * 2 - root.theme.gap
+                spacing: root.theme.smallGap
                 ReadingText {
                     width: parent.width
                     theme: root.theme
                     text: root.heading
-                    font.pixelSize: root.theme.readingLabelFontSize
+                    font.pixelSize: root.theme.labelFontSize
                     font.weight: Font.Medium
                 }
                 ReadingText {
@@ -54,7 +54,7 @@ Item {
                     theme: root.theme
                     text: root.scopeLabel
                     color: root.theme.muted
-                    font.pixelSize: root.theme.readingCaptionFontSize
+                    font.pixelSize: root.theme.microFontSize
                     wrapMode: Text.NoWrap
                     elide: Text.ElideMiddle
                 }
@@ -62,12 +62,12 @@ Item {
             ReadingText {
                 id: status
                 anchors.right: parent.right
-                anchors.rightMargin: 8
+                anchors.rightMargin: root.theme.pad
                 anchors.verticalCenter: parent.verticalCenter
                 theme: root.theme
                 text: root.statusText + (root.expanded ? "   −" : "   +")
                 color: root.row.tone === "attention" ? root.theme.storageAccent : root.theme.muted
-                font.pixelSize: root.theme.readingCaptionFontSize
+                font.pixelSize: root.theme.microFontSize
             }
         }
     }
@@ -76,9 +76,9 @@ Item {
         id: details
         visible: root.expanded
         y: header.height
-        x: 8
-        width: parent.width - 16
-        spacing: 14
+        x: root.theme.pad
+        width: parent.width - root.theme.pad * 2
+        spacing: root.theme.gap
         ReadingText {
             width: parent.width
             theme: root.theme
@@ -88,15 +88,15 @@ Item {
         }
         Rectangle {
             width: parent.width
-            implicitHeight: evidence.implicitHeight + 24
-            radius: 6
+            implicitHeight: evidence.implicitHeight + root.theme.pad * 2
+            radius: root.theme.controlRadius
             color: root.theme.surfaceMid
             Column {
                 id: evidence
-                x: 12
-                y: 12
-                width: parent.width - 24
-                spacing: 10
+                x: root.theme.pad
+                y: root.theme.pad
+                width: parent.width - root.theme.pad * 2
+                spacing: root.theme.gap
                 Repeater {
                     model: root.expanded ? root.row.evidence || [] : []
                     delegate: ReadingText {
@@ -104,8 +104,8 @@ Item {
                         width: evidence.width
                         theme: root.theme
                         text: modelData
-                        font.family: root.theme.codeFont
-                        font.pixelSize: root.theme.readingCaptionFontSize
+                        font.family: root.theme.dataFont
+                        font.pixelSize: root.theme.microFontSize
                         wrapMode: Text.Wrap
                         lineHeight: 1.35
                     }
@@ -116,7 +116,7 @@ Item {
                     theme: root.theme
                     text: Math.max(0, Number(root.row.evidenceCount || 0) - (root.row.evidence || []).length) + " additional records omitted"
                     color: root.theme.muted
-                    font.pixelSize: root.theme.readingCaptionFontSize
+                    font.pixelSize: root.theme.microFontSize
                 }
             }
         }
@@ -135,6 +135,6 @@ Item {
         width: parent.width
         height: root.theme.dividerWidth
         color: root.theme.cardBorder
-        opacity: 0.55
+        opacity: root.theme.dividerOpacity
     }
 }
