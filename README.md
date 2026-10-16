@@ -73,8 +73,9 @@ X-Ray settings control the refresh interval, timeline window, and optional
 window preview. X-Ray works with partial system capabilities and clearly labels
 information it could not read.
 
-Click **Why slow?** for a plain-language assessment of CPU, memory, and I/O clues,
-plus what could not be measured. The **Measurements** tab lists searchable
+Click **Check performance** in the selected-target summary for a plain-language
+assessment of CPU, memory, and I/O clues, plus what could not be measured.
+The **Measurements** tab lists searchable
 checks; expand a check to read its counters and sources. Rate checks need
 two samples; unavailable counters stay labeled unavailable. Each check identifies
 whether it covers the selected processes, a shared cgroup, or the host, so activity

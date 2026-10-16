@@ -20,7 +20,6 @@ Rectangle {
     signal capsuleRequested()
     signal settingsRequested()
     signal closeRequested()
-    signal performanceRequested()
 
     Layout.fillWidth: true
     Layout.preferredHeight: 42
@@ -75,16 +74,6 @@ Rectangle {
         }
 
         Item { Layout.fillWidth: true }
-
-        ActionButton {
-            objectName: "xrayWhySlowButton"
-            theme: root.theme
-            text: "Why slow?"
-            enabled: root.interactionEnabled && !!root.target.rootPid
-            accentColor: Number((root.snapshot.performance || {}).observed || 0) > 0
-                ? root.theme.alertAccent : root.theme.processAccent
-            onClicked: root.performanceRequested()
-        }
 
         RowLayout {
             spacing: 3

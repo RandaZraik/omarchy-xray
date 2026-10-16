@@ -211,7 +211,6 @@ Item {
                         onBrowserRequested: root.toggleBrowser()
                         onPickRequested: controller.pickWindow()
                         onPauseRequested: controller.toggleSampling()
-                        onPerformanceRequested: controller.showDetails(DetailDomains.Performance)
                         onCapsuleRequested: controller.toggleDrawer(controller.capsuleDrawer)
                         onSettingsRequested: {
                             settingsDrawer.openWith(controller.currentSettings);
@@ -259,11 +258,13 @@ Item {
 
                             IdentityBar {
                                 Layout.fillWidth: true
+                                enabled: !controller.interactionBlocked
                                 theme: theme
                                 appLibrary: root.appLibrary
                                 snapshot: controller.snapshot
                                 performanceSamples: controller.performanceSamples
                                 performanceWindowSeconds: controller.performanceWindowSeconds
+                                onPerformanceRequested: controller.showDetails(DetailDomains.Performance)
                                 onAlternativesRequested: controller.showDetails(DetailDomains.Alternatives)
                                 onCoverageRequested: if (controller.snapshot.coverage) controller.showDetails(DetailDomains.Coverage)
                             }

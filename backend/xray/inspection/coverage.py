@@ -94,7 +94,7 @@ def build_coverage(
     ]
     if performance.get("status") == "limited":
         limited.append(
-            "Some performance checks are unavailable; open Why slow? for source details"
+            "Some performance checks are unavailable; open Check performance for source details"
         )
     if any(
         check.get("status") in {"Observed", "Quiet"}

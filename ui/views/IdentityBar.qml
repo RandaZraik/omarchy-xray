@@ -15,6 +15,7 @@ Rectangle {
     property int performanceWindowSeconds: 60
     signal alternativesRequested()
     signal coverageRequested()
+    signal performanceRequested()
 
     readonly property var target: snapshot.target || ({})
     readonly property var metrics: snapshot.metrics || ({})
@@ -187,15 +188,45 @@ Rectangle {
                         spacing: root.theme.smallGap
 
                         PlainText {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             text: "SELECTED TARGET"
                             color: root.theme.processAccent
                             font.family: root.theme.dataFont
                             font.pixelSize: root.theme.microFontSize
                             font.bold: true
                             font.letterSpacing: root.theme.utilityTracking
+                            elide: Text.ElideRight
                         }
 
-                        Item { Layout.fillWidth: true }
+                        ActionButton {
+                            objectName: "xrayPerformanceButton"
+                            theme: root.theme
+                            text: "Check performance"
+                            fontSize: root.theme.bodyFontSize
+                            horizontalPadding: root.theme.pad
+                            verticalPadding: root.theme.smallGap
+                            accentColor: root.theme.cpuAccent
+                            enabled: !!root.target.rootPid
+                            tooltipText: "Show slowdown clues and measurements for this target"
+                            onClicked: root.performanceRequested()
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: root.theme.smallGap
+
+                        PlainText {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: String(root.target.label || root.target.query || "No target selected")
+                            color: root.theme.text
+                            font.family: root.theme.dataFont
+                            font.pixelSize: root.theme.summaryFontSize
+                            font.bold: true
+                            elide: Text.ElideMiddle
+                        }
 
                         PlainText {
                             visible: (root.target.alternatives || []).length > 1
@@ -213,16 +244,6 @@ Rectangle {
                                 onTapped: root.alternativesRequested()
                             }
                         }
-                    }
-
-                    PlainText {
-                        Layout.fillWidth: true
-                        text: String(root.target.label || root.target.query || "No target selected")
-                        color: root.theme.text
-                        font.family: root.theme.dataFont
-                        font.pixelSize: root.theme.summaryFontSize
-                        font.bold: true
-                        elide: Text.ElideMiddle
                     }
 
                     RowLayout {

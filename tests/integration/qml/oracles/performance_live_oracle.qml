@@ -41,19 +41,18 @@ ShellRoot {
         height: 720
         visible: true
         color: theme.panel
-        Views.AppHeader {
-            id: header
+        Views.IdentityBar {
+            id: identity
             theme: theme
             width: parent.width
-            height: 42
             snapshot: controller.snapshot
-            interactionEnabled: !controller.interactionBlocked
+            enabled: !controller.interactionBlocked
             onPerformanceRequested: controller.showDetails(DetailDomains.Performance)
         }
         Drawers.DetailDrawer {
             id: drawer
             theme: theme
-            y: 50
+            y: identity.height + theme.gap
             width: 740
             height: parent.height - y
             visible: controller.drawer === controller.detailsDrawer
@@ -76,8 +75,8 @@ ShellRoot {
                 root.require(controller.snapshot.target.rootPid === root.targetPid, "wrong live process")
                 root.require(controller.snapshot.performance.checks.length > 0, "backend omitted performance")
                 root.firstSample = controller.snapshot.generatedAt
-                var button = root.findObject(header, "xrayWhySlowButton")
-                root.require(button && button.enabled, "live Why slow button unavailable")
+                var button = root.findObject(identity, "xrayPerformanceButton")
+                root.require(button && button.enabled, "live performance button unavailable")
                 driver.mouseClick(button, button.width / 2, button.height / 2)
                 root.stage++
             } else if (root.stage === 2) {

@@ -45,19 +45,18 @@ ShellRoot {
         visible: true
         color: theme.panel
 
-        Views.AppHeader {
-            id: header
+        Views.IdentityBar {
+            id: identity
             theme: theme
             width: parent.width
-            height: 42
             snapshot: controller.snapshot
-            offline: controller.offline
+            enabled: !controller.interactionBlocked
             onPerformanceRequested: controller.showDetails(DetailDomains.Performance)
         }
         Drawers.DetailDrawer {
             id: drawer
             theme: theme
-            y: 50
+            y: identity.height + theme.gap
             width: window.width < 1000 ? 520 : 620
             height: parent.height - y
             visible: controller.drawer === controller.detailsDrawer
@@ -77,12 +76,16 @@ ShellRoot {
                 controller.snapshot = root.fixture
                 root.stage++
             } else if (root.stage === 1) {
-                var button = root.descendants(header).find(function(item) {
-                    return item.objectName === "xrayWhySlowButton"
+                var button = root.descendants(identity).find(function(item) {
+                    return item.objectName === "xrayPerformanceButton"
                 })
-                root.require(button && button.enabled && button.width > 0, "Why slow button unavailable")
+                root.require(button && button.enabled && button.width > 0, "performance button unavailable")
+                root.require(button.text === "Check performance", "performance action label changed")
+                var local = button.mapToItem(identity, 0, 0)
+                root.require(local.x >= 0 && local.y >= 0 && local.y + button.height <= identity.height,
+                    "performance button escapes the selected-target summary")
                 var position = button.mapToItem(window.contentItem, 0, 0)
-                root.require(position.x >= 0 && position.x + button.width <= window.width, "header button clipped")
+                root.require(position.x >= 0 && position.x + button.width <= window.width, "performance button clipped")
                 driver.mouseClick(button, button.width / 2, button.height / 2)
                 root.stage++
             } else if (root.stage === 2) {
