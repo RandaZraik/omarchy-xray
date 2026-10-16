@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 QtObject {
     function withAlpha(base, alpha) {
@@ -59,13 +60,13 @@ QtObject {
         return blend(Qt.hsva(hue, chroma, value, 1), accent, 0.08);
     }
 
-    readonly property color canvas: Color.background
-    readonly property color panel: blend(Color.background, Color.menu.text, 0.018)
-    readonly property color text: Color.menu.text
-    readonly property color accent: Color.accent
-    readonly property color danger: Color.urgent
+    readonly property color canvas: Commons.Color.background
+    readonly property color panel: blend(Commons.Color.background, Commons.Color.menu.text, 0.018)
+    readonly property color text: Commons.Color.menu.text
+    readonly property color accent: Commons.Color.accent
+    readonly property color danger: Commons.Color.urgent
     readonly property color border: blend(panel, text, 0.18)
-    readonly property color selected: Color.menu.selectedBackground
+    readonly property color selected: Commons.Color.menu.selectedBackground
     readonly property color scrim: withAlpha(canvas, 0.82)
     readonly property color transparent: withAlpha(panel, 0)
 
@@ -104,7 +105,7 @@ QtObject {
     readonly property real headingAccentMix: 0.58
     readonly property real focusSurfaceAccentMix: 0.12
     readonly property real focusBorderAccentMix: 0.5
-    readonly property color muted: blend(Color.muted, text, mutedTextMix)
+    readonly property color muted: blend(Commons.Color.muted, text, mutedTextMix)
     readonly property color quietSurface: blend(panel, text, quietSurfaceMix)
     readonly property color previewSurface: blend(quietSurface, accent, previewSurfaceMix)
     readonly property color controlFocusSurface: blend(
